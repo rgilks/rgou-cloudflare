@@ -1,6 +1,6 @@
 {
   "rustc": 15497389221046826682,
-  "features": "[\"default\"]",
+  "features": "[\"default\", \"wasm\"]",
   "declared_features": "[\"default\", \"wasm\"]",
   "target": 7732919407839651052,
   "profile": 2040997289075261528,
