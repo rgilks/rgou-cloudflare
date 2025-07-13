@@ -1,0 +1,23 @@
+{
+  "rustc": 15497389221046826682,
+  "features": "[\"i128\", \"libm\", \"std\"]",
+  "declared_features": "[\"default\", \"i128\", \"libm\", \"std\"]",
+  "target": 4278088450330190724,
+  "profile": 2040997289075261528,
+  "path": 13139589111368198222,
+  "deps": [
+    [5157631553186200874, "build_script_build", false, 2349017676563457084],
+    [10012205734978813886, "libm", false, 6890149914975417921]
+  ],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "wasm32-unknown-unknown/release/.fingerprint/num-traits-14692bf54b783cc6/dep-lib-num_traits",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 14682669768258224367
+}
