@@ -231,9 +231,11 @@ class GameFeatures:
 
 class RustAIClient:
     def __init__(
-        self, rust_ai_path: str = "worker/rust_ai_core/target/release/rgou-ai-core"
+        self, rust_ai_path: str = "worker/rust_ai_core/target/release/rgou-ai-core",
+        depth: int = 6,
     ):
         self.rust_ai_path = rust_ai_path
+        self.depth = depth
 
     def get_ai_move(self, game_state: Dict[str, Any]) -> Dict[str, Any]:
         try:
@@ -244,7 +246,7 @@ class RustAIClient:
                 temp_file = f.name
 
             result = subprocess.run(
-                [self.rust_ai_path, "get_move", temp_file],
+                [self.rust_ai_path, "get_move", temp_file, str(self.depth)],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -536,19 +538,19 @@ class GameDataset(Dataset):
 
 
 def simulate_game_worker(args):
-    rust_ai_path, game_id = args
-    client = RustAIClient(rust_ai_path)
+    rust_ai_path, game_id, rust_ai_depth = args
+    client = RustAIClient(rust_ai_path, depth=rust_ai_depth)
     simulator = GameSimulator(client)
     return simulator.simulate_game()
 
 
-def simulate_games_parallel(num_games, rust_ai_path):
-    print(f"Simulating {num_games} games using {get_optimal_workers()} workers...")
+def simulate_games_parallel(num_games, rust_ai_path, rust_ai_depth):
+    print(f"Simulating {num_games} games using {get_optimal_workers()} workers at depth {rust_ai_depth}...")
 
     with concurrent.futures.ProcessPoolExecutor(
         max_workers=get_optimal_workers()
     ) as executor:
-        args = [(rust_ai_path, i) for i in range(num_games)]
+        args = [(rust_ai_path, i, rust_ai_depth) for i in range(num_games)]
         results = list(
             tqdm(
                 executor.map(simulate_game_worker, args),
@@ -565,6 +567,7 @@ def generate_training_data(
     use_rust_ai: bool = True,
     save_data: bool = True,
     load_existing: bool = False,
+    rust_ai_depth: int = 6,
 ) -> List[Dict[str, Any]]:
     if load_existing and os.path.exists("training_data_cache.json"):
         print("Loading existing training data...")
@@ -581,7 +584,7 @@ def generate_training_data(
                 ["cargo", "build", "--release"], cwd="worker/rust_ai_core", check=True
             )
 
-        game_results = simulate_games_parallel(num_games, rust_ai_path)
+        game_results = simulate_games_parallel(num_games, rust_ai_path, rust_ai_depth)
 
         simulator = GameSimulator(None)
 
@@ -876,6 +879,9 @@ def main():
     parser.add_argument(
         "--num-workers", type=int, default=0, help="Number of DataLoader workers (default 0 for macOS compatibility)"
     )
+    parser.add_argument(
+        "--rust-ai-depth", type=int, default=6, help="Depth for Rust AI expectiminimax (default 6)"
+    )
 
     args = parser.parse_args()
 
@@ -891,6 +897,7 @@ def main():
         use_rust_ai=args.use_rust_ai,
         save_data=True,
         load_existing=args.load_existing,
+        rust_ai_depth=args.rust_ai_depth,
     )
 
     print(f"Generated {len(training_data)} training samples")

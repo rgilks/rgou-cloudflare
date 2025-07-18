@@ -7,15 +7,20 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        println!("Usage: {} <command> <input_file>", args[0]);
+        println!("Usage: {} <command> <input_file> [depth]", args[0]);
         println!("Commands:");
-        println!("  get_move <file> - Get best move for game state");
+        println!("  get_move <file> [depth] - Get best move for game state");
         println!("  evaluate <file> - Evaluate position");
         return;
     }
 
     let command = &args[1];
     let input_file = &args[2];
+    let depth = if command == "get_move" && args.len() > 3 {
+        args[3].parse::<u8>().unwrap_or(4)
+    } else {
+        4
+    };
 
     // Read game state from file
     let content = match fs::read_to_string(input_file) {
@@ -40,7 +45,7 @@ fn main() {
     match command.as_str() {
         "get_move" => {
             let mut ai = rgou_ai_core::AI::new();
-            let (best_move, move_evaluations) = ai.get_best_move(&rust_game_state, 4);
+            let (best_move, move_evaluations) = ai.get_best_move(&rust_game_state, depth);
 
             let output = serde_json::json!({
                 "move": best_move,
