@@ -44,7 +44,7 @@ For developers who want to run locally or contribute:
 - [Git](https://git-scm.com/downloads)
 - [Node.js (v20+)](https://nodejs.org/)
 - [Rust & Cargo](https://www.rust-lang.org/tools/install)
-- `cargo install wasm-pack`
+- `cargo install wasm-pack --version 0.12.1`
 - [Python 3.10+](https://www.python.org/downloads/) (for ML training, optional)
 - Install ML dependencies (for training, optional):
   - `pip install -r ml/requirements.txt`
@@ -84,7 +84,7 @@ All files and scripts related to ML model training, weights, and utilities are n
 - Install ML dependencies:
   - `pip install -r ml/requirements.txt`
 - [Rust & Cargo](https://www.rust-lang.org/tools/install)
-- `cargo install wasm-pack`
+- `cargo install wasm-pack --version 0.12.1`
 
 ### Training
 

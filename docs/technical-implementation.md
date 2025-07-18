@@ -16,7 +16,7 @@
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Install wasm-pack
-cargo install wasm-pack
+cargo install wasm-pack --version 0.12.1
 
 # Install Node.js dependencies
 npm install
