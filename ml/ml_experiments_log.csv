@@ -1,0 +1,2 @@
+version,date,num_games,epochs,dropout,model_size,weights_file,win_rate_vs_emm3,avg_time_ms,notes
+v1,2024-06-13,500,10,0.2,large,ml_ai_weights_v1.json,0.46,0.53,"Benchmarked vs EMM-3" 

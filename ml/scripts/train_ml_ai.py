@@ -794,7 +794,7 @@ def save_weights_optimized(
     policy_network: PolicyNetwork,
     filename: str,
     quantize: bool = True,
-    compress: bool = True,
+    compress: bool = True,  # This flag is now ignored, always save both
 ):
     value_weights = extract_weights(value_network)
     policy_weights = extract_weights(policy_network)
@@ -818,15 +818,16 @@ def save_weights_optimized(
         },
     }
 
-    if compress:
-        compressed_data = compress_weights(weights_data)
-        with open(filename + ".gz", "wb") as f:
-            f.write(compressed_data)
-        print(f"Compressed weights saved to {filename}.gz")
-    else:
-        with open(filename, "w") as f:
-            json.dump(weights_data, f, separators=(",", ":"))
-        print(f"Weights saved to {filename}")
+    # Always save uncompressed JSON
+    with open(filename, "w") as f:
+        json.dump(weights_data, f, separators=(",", ":"))
+    print(f"Weights saved to {filename}")
+
+    # Always save compressed .gz version
+    compressed_data = compress_weights(weights_data)
+    with open(filename + ".gz", "wb") as f:
+        f.write(compressed_data)
+    print(f"Compressed weights saved to {filename}.gz")
 
 
 def main():

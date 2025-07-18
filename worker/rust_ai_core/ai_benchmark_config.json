@@ -23,6 +23,18 @@
       "player1": { "type": "ml-test" },
       "player2": { "type": "expectiminimax", "depth": 3 },
       "games": 100
+    },
+    {
+      "name": "ML-V1 vs EMM-3",
+      "player1": { "type": "ml-v1" },
+      "player2": { "type": "expectiminimax", "depth": 3 },
+      "games": 100
+    },
+    {
+      "name": "ML-V2 vs EMM-3",
+      "player1": { "type": "ml-v2" },
+      "player2": { "type": "expectiminimax", "depth": 3 },
+      "games": 100
     }
   ]
 }

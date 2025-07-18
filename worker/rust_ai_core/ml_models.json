@@ -1,5 +1,7 @@
 {
   "ml1": "../../ml/data/weights/ml_ai_weights_fast.json",
   "ml2": "../../ml/data/weights/ml_ai_weights_overnight.json",
-  "ml-test": "../../ml/data/weights/ml_ai_weights_test.json"
+  "ml-test": "../../ml/data/weights/ml_ai_weights_test.json",
+  "ml-v1": "../../ml/data/weights/ml_ai_weights_v1.json",
+  "ml-v2": "../../ml/data/weights/ml_ai_weights_v2.json"
 }
