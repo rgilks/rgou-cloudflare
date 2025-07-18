@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "npm run generate:sw && next dev --turbopack",
     "build": "npm run generate:sw && npm run build:wasm-assets && next build",
-    "build:cf": "npm run generate:sw && npm run build:wasm-assets && npx @opennextjs/cloudflare build",
+    "build:cf": "npm run generate:sw && npx @opennextjs/cloudflare build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
