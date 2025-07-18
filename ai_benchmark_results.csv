@@ -1,0 +1,6 @@
+matchup,player1,player2,win_rate_p1,win_rate_p2,avg_time_ms_p1,avg_time_ms_p2
+EMM-1 vs EMM-1	EMM-1	EMM-1	0.540	0.460	0.0074	0.0079
+EMM-2 vs EMM-1	EMM-2	EMM-1	0.600	0.400	0.0690	0.0045
+EMM-3 vs EMM-1	EMM-3	EMM-1	0.630	0.370	0.7765	0.0047
+EMM-4 vs EMM-1	EMM-4	EMM-1	0.760	0.240	7.3236	0.0062
+ML1 vs EMM-1	ML1	EMM-1	0.660	0.340	2.3801	0.0093
