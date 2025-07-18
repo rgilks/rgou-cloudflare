@@ -18,6 +18,7 @@ import multiprocessing
 import time
 from pathlib import Path
 import gzip
+import datetime
 
 
 def get_device():
@@ -428,12 +429,15 @@ class GameSimulator:
             game_state["valid_moves"] = valid_moves
 
             if valid_moves:
-                ai_response = self.rust_ai_client.get_ai_move(game_state)
-                if (
-                    ai_response.get("move") is not None
-                    and ai_response["move"] in valid_moves
-                ):
-                    move_index = ai_response["move"]
+                if self.rust_ai_client is not None:
+                    ai_response = self.rust_ai_client.get_ai_move(game_state)
+                    if (
+                        ai_response.get("move") is not None
+                        and ai_response["move"] in valid_moves
+                    ):
+                        move_index = ai_response["move"]
+                    else:
+                        move_index = random.choice(valid_moves)
                 else:
                     move_index = random.choice(valid_moves)
 
@@ -658,6 +662,7 @@ def train_networks(
     weight_decay: float = 1e-4,
     early_stopping_patience: int = 10,
     small_model: bool = False,
+    num_workers: int = 0,
 ) -> Tuple[ValueNetwork, PolicyNetwork]:
     device = get_device()
     if batch_size is None:
@@ -665,9 +670,8 @@ def train_networks(
 
     print(f"Training on device: {device}")
     print(f"Batch size: {batch_size}")
-    print(f"DataLoader workers: {get_optimal_workers()}")
+    print(f"DataLoader workers: {num_workers}")
 
-    # Validation split
     val_split = 0.1
     split_idx = int(len(training_data) * (1 - val_split))
     train_data = training_data[:split_idx]
@@ -679,14 +683,14 @@ def train_networks(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=get_optimal_workers(),
+        num_workers=num_workers,
         pin_memory=device.type == "cuda",
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=get_optimal_workers(),
+        num_workers=num_workers,
         pin_memory=device.type == "cuda",
     )
 
@@ -704,13 +708,16 @@ def train_networks(
     best_val_loss = float('inf')
     patience = 0
     best_state = None
+    epoch_times = []
 
     for epoch in range(epochs):
+        epoch_start = datetime.datetime.now()
+        print(f"\nEpoch {epoch + 1}/{epochs} started at {epoch_start.strftime('%H:%M:%S')}")
         value_network.train()
         policy_network.train()
         value_losses = []
         policy_losses = []
-        for features, value_targets, policy_targets in train_loader:
+        for features, value_targets, policy_targets in tqdm(train_loader, desc=f"Epoch {epoch+1} train", leave=False):
             features = features.to(device)
             value_targets = value_targets.to(device)
             policy_targets = policy_targets.to(device)
@@ -729,7 +736,6 @@ def train_networks(
             policy_optimizer.step()
             policy_losses.append(policy_loss.item())
 
-        # Validation
         value_network.eval()
         policy_network.eval()
         val_value_losses = []
@@ -749,11 +755,17 @@ def train_networks(
         avg_policy_loss = np.mean(policy_losses)
         avg_val_value_loss = np.mean(val_value_losses)
         avg_val_policy_loss = np.mean(val_policy_losses)
-        if (epoch + 1) % 10 == 0 or epoch == 0:
-            print(
-                f"Epoch {epoch + 1}/{epochs} - Train Value Loss: {avg_value_loss:.4f}, Policy Loss: {avg_policy_loss:.4f} | Val Value Loss: {avg_val_value_loss:.4f}, Policy Loss: {avg_val_policy_loss:.4f}"
-            )
-        # Early stopping
+        epoch_end = datetime.datetime.now()
+        epoch_time = (epoch_end - epoch_start).total_seconds()
+        epoch_times.append(epoch_time)
+        avg_epoch_time = np.mean(epoch_times)
+        eta = avg_epoch_time * (epochs - (epoch + 1))
+        eta_str = str(datetime.timedelta(seconds=int(eta)))
+        print(
+            f"Epoch {epoch + 1}/{epochs} finished at {epoch_end.strftime('%H:%M:%S')} (Duration: {epoch_time:.1f}s, ETA: {eta_str})\n"
+            f"  Train Value Loss: {avg_value_loss:.4f}, Policy Loss: {avg_policy_loss:.4f}\n"
+            f"  Val   Value Loss: {avg_val_value_loss:.4f}, Policy Loss: {avg_val_policy_loss:.4f}"
+        )
         val_loss = avg_val_value_loss + avg_val_policy_loss
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -764,7 +776,6 @@ def train_networks(
             if patience >= early_stopping_patience:
                 print(f"Early stopping at epoch {epoch+1}")
                 break
-    # Restore best weights
     if best_state is not None:
         value_network.load_state_dict(best_state[0])
         policy_network.load_state_dict(best_state[1])
@@ -793,17 +804,17 @@ def save_weights_optimized(
         policy_weights = quantize_weights(policy_weights, 16)
 
     weights_data = {
-        "value_weights": value_weights,
-        "policy_weights": policy_weights,
-        "value_network_config": {
-            "input_size": 150,
-            "hidden_sizes": [256, 128, 64, 32],
-            "output_size": 1,
+        "valueWeights": value_weights,
+        "policyWeights": policy_weights,
+        "valueNetworkConfig": {
+            "inputSize": 150,
+            "hiddenSizes": [256, 128, 64, 32],
+            "outputSize": 1,
         },
-        "policy_network_config": {
-            "input_size": 150,
-            "hidden_sizes": [256, 128, 64, 32],
-            "output_size": 7,
+        "policyNetworkConfig": {
+            "inputSize": 150,
+            "hiddenSizes": [256, 128, 64, 32],
+            "outputSize": 7,
         },
     }
 
@@ -861,6 +872,9 @@ def main():
     parser.add_argument(
         "--small-model", action="store_true", help="Use a smaller, faster model"
     )
+    parser.add_argument(
+        "--num-workers", type=int, default=0, help="Number of DataLoader workers (default 0 for macOS compatibility)"
+    )
 
     args = parser.parse_args()
 
@@ -889,6 +903,7 @@ def main():
         weight_decay=args.weight_decay,
         early_stopping_patience=args.early_stopping_patience,
         small_model=args.small_model,
+        num_workers=args.num_workers,
     )
 
     save_weights_optimized(value_network, policy_network, args.output)

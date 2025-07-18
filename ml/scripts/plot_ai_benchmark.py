@@ -5,8 +5,8 @@ matchups = []
 win_rates = []
 
 with open('ai_benchmark_results.csv') as f:
-    lines = f.readlines()
-    reader = csv.reader(lines[1:], delimiter='\t')
+    reader = csv.reader(f, delimiter=',')
+    next(reader)  # Skip header
     for row in reader:
         if len(row) < 4:
             continue

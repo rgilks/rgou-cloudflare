@@ -3,7 +3,10 @@ use rand::Rng;
 use rayon::prelude::*;
 use rgou_ai_core::{GameState, Player, AI};
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::{BufReader, Write};
 use std::path::Path;
 use std::path::PathBuf;
@@ -29,19 +32,30 @@ struct PlayerConfig {
     depth: Option<u8>,
 }
 
+// Remove ML1, ML2, MLTest from AIType, use ML(String) instead
 enum AIType {
     EMM(u8),
     Random,
-    ML1,
-    ML2,
+    ML(String),
+}
+
+// Load ML model mapping from JSON
+fn load_ml_model_map() -> HashMap<String, String> {
+    let path = "ml_models.json";
+    let file = File::open(path).expect("Failed to open ml_models.json");
+    let json: JsonValue = serde_json::from_reader(file).expect("Failed to parse ml_models.json");
+    let mut map = HashMap::new();
+    for (k, v) in json.as_object().unwrap() {
+        map.insert(k.to_lowercase(), v.as_str().unwrap().to_string());
+    }
+    map
 }
 
 fn get_ai_type(cfg: &PlayerConfig) -> AIType {
     match cfg.kind.to_lowercase().as_str() {
         "expectiminimax" | "emm" => AIType::EMM(cfg.depth.unwrap_or(1)),
         "random" => AIType::Random,
-        "ml1" => AIType::ML1,
-        "ml2" => AIType::ML2,
+        s if s.starts_with("ml") => AIType::ML(s.to_string()),
         _ => panic!("Unknown AI type: {}", cfg.kind),
     }
 }
@@ -54,7 +68,7 @@ struct GameStats {
     p2_moves: usize,
 }
 
-fn play_game(p1: &AIType, p2: &AIType) -> GameStats {
+fn play_game(p1: &AIType, p2: &AIType, ml_model_map: &HashMap<String, String>) -> GameStats {
     let mut game_state = GameState::new();
     let mut ai1 = AI::new();
     let mut ai2 = AI::new();
@@ -86,21 +100,16 @@ fn play_game(p1: &AIType, p2: &AIType) -> GameStats {
                         Some(*moves.choose(&mut rng).unwrap())
                     }
                 }
-                AIType::ML1 => {
-                    if !ml1_loaded {
-                        let (v, p) = load_ml_weights_fast();
+                AIType::ML(model) => {
+                    if ml1.is_none() {
+                        let weights_path = ml_model_map
+                            .get(&model.to_lowercase())
+                            .expect(&format!("ML model '{}' not found in ml_models.json", model));
+                        let (v, p) = load_ml_weights_generic(weights_path);
                         ml1 = Some(new_ml_ai(&v, &p));
                         ml1_loaded = true;
                     }
                     ml1.as_mut().unwrap().get_best_move(&game_state).r#move
-                }
-                AIType::ML2 => {
-                    if !ml2_loaded {
-                        let (v, p) = load_ml_weights_overnight();
-                        ml2 = Some(new_ml_ai(&v, &p));
-                        ml2_loaded = true;
-                    }
-                    ml2.as_mut().unwrap().get_best_move(&game_state).r#move
                 }
             };
             p1_time_s += start.elapsed().as_secs_f64();
@@ -122,17 +131,12 @@ fn play_game(p1: &AIType, p2: &AIType) -> GameStats {
                         Some(*moves.choose(&mut rng).unwrap())
                     }
                 }
-                AIType::ML1 => {
-                    if !ml1_loaded {
-                        let (v, p) = load_ml_weights_fast();
-                        ml1 = Some(new_ml_ai(&v, &p));
-                        ml1_loaded = true;
-                    }
-                    ml1.as_mut().unwrap().get_best_move(&game_state).r#move
-                }
-                AIType::ML2 => {
-                    if !ml2_loaded {
-                        let (v, p) = load_ml_weights_overnight();
+                AIType::ML(model) => {
+                    if ml2.is_none() {
+                        let weights_path = ml_model_map
+                            .get(&model.to_lowercase())
+                            .expect(&format!("ML model '{}' not found in ml_models.json", model));
+                        let (v, p) = load_ml_weights_generic(weights_path);
                         ml2 = Some(new_ml_ai(&v, &p));
                         ml2_loaded = true;
                     }
@@ -173,9 +177,8 @@ fn play_game(p1: &AIType, p2: &AIType) -> GameStats {
 use rgou_ai_core::ml_ai::MLAI;
 use serde_json;
 
-fn load_ml_weights_fast() -> (Vec<f32>, Vec<f32>) {
-    let mut path = std::env::current_dir().unwrap();
-    path.push("ml/data/weights/ml_ai_weights_fast.json");
+fn load_ml_weights_generic(weights_path: &str) -> (Vec<f32>, Vec<f32>) {
+    let path = Path::new(weights_path);
     let content = std::fs::read_to_string(&path)
         .expect(&format!("Failed to read weights file: {}", path.display()));
     let weights: serde_json::Value = serde_json::from_str(&content).unwrap();
@@ -193,36 +196,6 @@ fn load_ml_weights_fast() -> (Vec<f32>, Vec<f32>) {
         .collect();
     (value_weights, policy_weights)
 }
-fn load_ml_weights_overnight() -> (Vec<f32>, Vec<f32>) {
-    let mut path = std::env::current_dir().unwrap();
-    path.push("ml/data/weights/ml_ai_weights_overnight.json");
-    let content = std::fs::read_to_string(&path)
-        .expect(&format!("Failed to read weights file: {}", path.display()));
-    let weights: serde_json::Value = serde_json::from_str(&content).expect("Failed to parse JSON");
-    let value_weights = match weights.get("valueWeights") {
-        Some(arr) => arr.as_array().expect("valueWeights is not an array"),
-        None => {
-            eprintln!("valueWeights missing in ML2 weights file");
-            std::process::exit(1);
-        }
-    };
-    let policy_weights = match weights.get("policyWeights") {
-        Some(arr) => arr.as_array().expect("policyWeights is not an array"),
-        None => {
-            eprintln!("policyWeights missing in ML2 weights file");
-            std::process::exit(1);
-        }
-    };
-    let value_weights: Vec<f32> = value_weights
-        .iter()
-        .map(|v| v.as_f64().expect("Non-numeric value in valueWeights") as f32)
-        .collect();
-    let policy_weights: Vec<f32> = policy_weights
-        .iter()
-        .map(|v| v.as_f64().expect("Non-numeric value in policyWeights") as f32)
-        .collect();
-    (value_weights, policy_weights)
-}
 fn new_ml_ai(value: &[f32], policy: &[f32]) -> MLAI {
     let mut ml = MLAI::new();
     ml.load_pretrained(value, policy);
@@ -234,13 +207,28 @@ fn main() {
     let file = File::open(config_path).expect("Failed to open config file");
     let reader = BufReader::new(file);
     let config: Config = serde_json::from_reader(reader).expect("Failed to parse config");
+    let ml_model_map = load_ml_model_map();
     println!("matchup\tplayer1\tplayer2\twin_rate_p1\twin_rate_p2\tavg_time_ms_p1\tavg_time_ms_p2");
+
+    // Open CSV file for writing (overwrite)
+    let mut csv_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open("ai_benchmark_results.csv")
+        .expect("Failed to open ai_benchmark_results.csv for writing");
+    writeln!(
+        csv_file,
+        "matchup,player1,player2,win_rate_p1,win_rate_p2,avg_time_ms_p1,avg_time_ms_p2"
+    )
+    .unwrap();
+
     for matchup in config.matchups {
         let p1_type = get_ai_type(&matchup.player1);
         let p2_type = get_ai_type(&matchup.player2);
         let results: Vec<_> = (0..matchup.games)
             .into_par_iter()
-            .map(|_| play_game(&p1_type, &p2_type))
+            .map(|_| play_game(&p1_type, &p2_type, &ml_model_map))
             .collect();
         let p1_wins = results
             .iter()
@@ -269,14 +257,12 @@ fn main() {
         let p1_label = match &p1_type {
             AIType::EMM(d) => format!("EMM-{}", d),
             AIType::Random => "Random".to_string(),
-            AIType::ML1 => "ML1".to_string(),
-            AIType::ML2 => "ML2".to_string(),
+            AIType::ML(model) => format!("ML-{}", model),
         };
         let p2_label = match &p2_type {
             AIType::EMM(d) => format!("EMM-{}", d),
             AIType::Random => "Random".to_string(),
-            AIType::ML1 => "ML1".to_string(),
-            AIType::ML2 => "ML2".to_string(),
+            AIType::ML(model) => format!("ML-{}", model),
         };
         println!(
             "{}\t{}\t{}\t{:.3}\t{:.3}\t{:.4}\t{:.4}",
@@ -288,5 +274,17 @@ fn main() {
             avg_time_ms_p1,
             avg_time_ms_p2
         );
+        writeln!(
+            csv_file,
+            "{},{},{},{:.3},{:.3},{:.4},{:.4}",
+            matchup.name,
+            p1_label,
+            p2_label,
+            win_rate_p1,
+            win_rate_p2,
+            avg_time_ms_p1,
+            avg_time_ms_p2
+        )
+        .unwrap();
     }
 }

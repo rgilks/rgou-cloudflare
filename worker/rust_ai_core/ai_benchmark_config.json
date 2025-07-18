@@ -1,39 +1,27 @@
 {
   "matchups": [
     {
-      "name": "EMM-1 vs EMM-1",
-      "player1": { "type": "expectiminimax", "depth": 1 },
-      "player2": { "type": "expectiminimax", "depth": 1 },
-      "games": 100
-    },
-    {
-      "name": "EMM-2 vs EMM-1",
-      "player1": { "type": "expectiminimax", "depth": 2 },
-      "player2": { "type": "expectiminimax", "depth": 1 },
-      "games": 100
-    },
-    {
-      "name": "EMM-3 vs EMM-1",
+      "name": "EMM-3 vs EMM-4",
       "player1": { "type": "expectiminimax", "depth": 3 },
-      "player2": { "type": "expectiminimax", "depth": 1 },
+      "player2": { "type": "expectiminimax", "depth": 4 },
       "games": 100
     },
     {
-      "name": "EMM-4 vs EMM-1",
-      "player1": { "type": "expectiminimax", "depth": 4 },
-      "player2": { "type": "expectiminimax", "depth": 1 },
-      "games": 100
-    },
-    {
-      "name": "ML1 vs EMM-1",
+      "name": "ML1 vs EMM-3",
       "player1": { "type": "ml1" },
-      "player2": { "type": "expectiminimax", "depth": 1 },
+      "player2": { "type": "expectiminimax", "depth": 3 },
       "games": 100
     },
     {
-      "name": "ML2 vs EMM-1",
+      "name": "ML2 vs EMM-3",
       "player1": { "type": "ml2" },
-      "player2": { "type": "expectiminimax", "depth": 1 },
+      "player2": { "type": "expectiminimax", "depth": 3 },
+      "games": 100
+    },
+    {
+      "name": "ML-TEST vs EMM-3",
+      "player1": { "type": "ml-test" },
+      "player2": { "type": "expectiminimax", "depth": 3 },
       "games": 100
     }
   ]
