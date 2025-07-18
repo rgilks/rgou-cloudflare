@@ -473,40 +473,44 @@ class GameSimulator:
 
 
 class ValueNetwork(nn.Module):
-    def __init__(self, input_size: int = 150):
+    def __init__(self, input_size: int = 150, dropout: float = 0.3, small: bool = False):
         super(ValueNetwork, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(input_size, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 1),
-            nn.Tanh(),
-        )
+        if small:
+            hidden_sizes = [128, 64, 32]
+        else:
+            hidden_sizes = [256, 128, 64, 32]
+        layers = []
+        last_size = input_size
+        for size in hidden_sizes:
+            layers.append(nn.Linear(last_size, size))
+            layers.append(nn.ReLU())
+            layers.append(nn.Dropout(dropout))
+            last_size = size
+        layers.append(nn.Linear(last_size, 1))
+        layers.append(nn.Tanh())
+        self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.layers(x)
 
 
 class PolicyNetwork(nn.Module):
-    def __init__(self, input_size: int = 150, output_size: int = 7):
+    def __init__(self, input_size: int = 150, output_size: int = 7, dropout: float = 0.3, small: bool = False):
         super(PolicyNetwork, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(input_size, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, output_size),
-            nn.Softmax(dim=1),
-        )
+        if small:
+            hidden_sizes = [128, 64, 32]
+        else:
+            hidden_sizes = [256, 128, 64, 32]
+        layers = []
+        last_size = input_size
+        for size in hidden_sizes:
+            layers.append(nn.Linear(last_size, size))
+            layers.append(nn.ReLU())
+            layers.append(nn.Dropout(dropout))
+            last_size = size
+        layers.append(nn.Linear(last_size, output_size))
+        layers.append(nn.Softmax(dim=1))
+        self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.layers(x)
@@ -650,6 +654,10 @@ def train_networks(
     epochs: int = 100,
     batch_size: int = None,
     learning_rate: float = 0.001,
+    dropout: float = 0.3,
+    weight_decay: float = 1e-4,
+    early_stopping_patience: int = 10,
+    small_model: bool = False,
 ) -> Tuple[ValueNetwork, PolicyNetwork]:
     device = get_device()
     if batch_size is None:
@@ -659,37 +667,54 @@ def train_networks(
     print(f"Batch size: {batch_size}")
     print(f"DataLoader workers: {get_optimal_workers()}")
 
-    dataset = GameDataset(training_data)
-    dataloader = DataLoader(
-        dataset,
+    # Validation split
+    val_split = 0.1
+    split_idx = int(len(training_data) * (1 - val_split))
+    train_data = training_data[:split_idx]
+    val_data = training_data[split_idx:]
+
+    train_dataset = GameDataset(train_data)
+    val_dataset = GameDataset(val_data)
+    train_loader = DataLoader(
+        train_dataset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=get_optimal_workers(),
         pin_memory=device.type == "cuda",
     )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=get_optimal_workers(),
+        pin_memory=device.type == "cuda",
+    )
 
-    value_network = ValueNetwork().to(device)
-    policy_network = PolicyNetwork().to(device)
+    value_network = ValueNetwork(dropout=dropout, small=small_model).to(device)
+    policy_network = PolicyNetwork(dropout=dropout, small=small_model).to(device)
 
-    value_optimizer = optim.Adam(value_network.parameters(), lr=learning_rate)
-    policy_optimizer = optim.Adam(policy_network.parameters(), lr=learning_rate)
+    value_optimizer = optim.Adam(value_network.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    policy_optimizer = optim.Adam(policy_network.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     value_criterion = nn.MSELoss()
     policy_criterion = nn.CrossEntropyLoss()
 
-    print(f"Training for {epochs} epochs with {len(training_data)} samples...")
+    print(f"Training for {epochs} epochs with {len(train_data)} train and {len(val_data)} val samples...")
+
+    best_val_loss = float('inf')
+    patience = 0
+    best_state = None
 
     for epoch in range(epochs):
-
+        value_network.train()
+        policy_network.train()
         value_losses = []
         policy_losses = []
-
-        for features, value_targets, policy_targets in dataloader:
+        for features, value_targets, policy_targets in train_loader:
             features = features.to(device)
             value_targets = value_targets.to(device)
             policy_targets = policy_targets.to(device)
 
-            # Train value network
             value_optimizer.zero_grad()
             value_outputs = value_network(features)
             value_loss = value_criterion(value_outputs, value_targets)
@@ -697,7 +722,6 @@ def train_networks(
             value_optimizer.step()
             value_losses.append(value_loss.item())
 
-            # Train policy network
             policy_optimizer.zero_grad()
             policy_outputs = policy_network(features)
             policy_loss = policy_criterion(policy_outputs, policy_targets)
@@ -705,13 +729,45 @@ def train_networks(
             policy_optimizer.step()
             policy_losses.append(policy_loss.item())
 
-        if (epoch + 1) % 10 == 0:
-            avg_value_loss = np.mean(value_losses)
-            avg_policy_loss = np.mean(policy_losses)
+        # Validation
+        value_network.eval()
+        policy_network.eval()
+        val_value_losses = []
+        val_policy_losses = []
+        with torch.no_grad():
+            for features, value_targets, policy_targets in val_loader:
+                features = features.to(device)
+                value_targets = value_targets.to(device)
+                policy_targets = policy_targets.to(device)
+                val_value_outputs = value_network(features)
+                val_value_loss = value_criterion(val_value_outputs, value_targets)
+                val_value_losses.append(val_value_loss.item())
+                val_policy_outputs = policy_network(features)
+                val_policy_loss = policy_criterion(val_policy_outputs, policy_targets)
+                val_policy_losses.append(val_policy_loss.item())
+        avg_value_loss = np.mean(value_losses)
+        avg_policy_loss = np.mean(policy_losses)
+        avg_val_value_loss = np.mean(val_value_losses)
+        avg_val_policy_loss = np.mean(val_policy_losses)
+        if (epoch + 1) % 10 == 0 or epoch == 0:
             print(
-                f"Epoch {epoch + 1}/{epochs} - Value Loss: {avg_value_loss:.4f}, Policy Loss: {avg_policy_loss:.4f}"
+                f"Epoch {epoch + 1}/{epochs} - Train Value Loss: {avg_value_loss:.4f}, Policy Loss: {avg_policy_loss:.4f} | Val Value Loss: {avg_val_value_loss:.4f}, Policy Loss: {avg_val_policy_loss:.4f}"
             )
-
+        # Early stopping
+        val_loss = avg_val_value_loss + avg_val_policy_loss
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience = 0
+            best_state = (value_network.state_dict(), policy_network.state_dict())
+        else:
+            patience += 1
+            if patience >= early_stopping_patience:
+                print(f"Early stopping at epoch {epoch+1}")
+                break
+    # Restore best weights
+    if best_state is not None:
+        value_network.load_state_dict(best_state[0])
+        policy_network.load_state_dict(best_state[1])
     return value_network, policy_network
 
 
@@ -793,6 +849,18 @@ def main():
     parser.add_argument(
         "--load-existing", action="store_true", help="Load existing training data"
     )
+    parser.add_argument(
+        "--dropout", type=float, default=0.3, help="Dropout rate (default 0.3)"
+    )
+    parser.add_argument(
+        "--weight-decay", type=float, default=1e-4, help="L2 weight decay (default 1e-4)"
+    )
+    parser.add_argument(
+        "--early-stopping-patience", type=int, default=10, help="Early stopping patience (default 10)"
+    )
+    parser.add_argument(
+        "--small-model", action="store_true", help="Use a smaller, faster model"
+    )
 
     args = parser.parse_args()
 
@@ -817,6 +885,10 @@ def main():
         epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
+        dropout=args.dropout,
+        weight_decay=args.weight_decay,
+        early_stopping_patience=args.early_stopping_patience,
+        small_model=args.small_model,
     )
 
     save_weights_optimized(value_network, policy_network, args.output)

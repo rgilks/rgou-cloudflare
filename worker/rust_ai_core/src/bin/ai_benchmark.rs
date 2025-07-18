@@ -198,18 +198,28 @@ fn load_ml_weights_overnight() -> (Vec<f32>, Vec<f32>) {
     path.push("ml/data/weights/ml_ai_weights_overnight.json");
     let content = std::fs::read_to_string(&path)
         .expect(&format!("Failed to read weights file: {}", path.display()));
-    let weights: serde_json::Value = serde_json::from_str(&content).unwrap();
-    let value_weights = weights["valueWeights"]
-        .as_array()
-        .unwrap()
+    let weights: serde_json::Value = serde_json::from_str(&content).expect("Failed to parse JSON");
+    let value_weights = match weights.get("valueWeights") {
+        Some(arr) => arr.as_array().expect("valueWeights is not an array"),
+        None => {
+            eprintln!("valueWeights missing in ML2 weights file");
+            std::process::exit(1);
+        }
+    };
+    let policy_weights = match weights.get("policyWeights") {
+        Some(arr) => arr.as_array().expect("policyWeights is not an array"),
+        None => {
+            eprintln!("policyWeights missing in ML2 weights file");
+            std::process::exit(1);
+        }
+    };
+    let value_weights: Vec<f32> = value_weights
         .iter()
-        .map(|v| v.as_f64().unwrap() as f32)
+        .map(|v| v.as_f64().expect("Non-numeric value in valueWeights") as f32)
         .collect();
-    let policy_weights = weights["policyWeights"]
-        .as_array()
-        .unwrap()
+    let policy_weights: Vec<f32> = policy_weights
         .iter()
-        .map(|v| v.as_f64().unwrap() as f32)
+        .map(|v| v.as_f64().expect("Non-numeric value in policyWeights") as f32)
         .collect();
     (value_weights, policy_weights)
 }
@@ -224,13 +234,8 @@ fn main() {
     let file = File::open(config_path).expect("Failed to open config file");
     let reader = BufReader::new(file);
     let config: Config = serde_json::from_reader(reader).expect("Failed to parse config");
-    let mut wtr = File::create("ai_benchmark_results.csv").unwrap();
-    writeln!(
-        wtr,
-        "matchup,player1,player2,win_rate_p1,win_rate_p2,avg_time_ms_p1,avg_time_ms_p2"
-    )
-    .unwrap();
-    for matchup in &config.matchups {
+    println!("matchup\tplayer1\tplayer2\twin_rate_p1\twin_rate_p2\tavg_time_ms_p1\tavg_time_ms_p2");
+    for matchup in config.matchups {
         let p1_type = get_ai_type(&matchup.player1);
         let p2_type = get_ai_type(&matchup.player2);
         let results: Vec<_> = (0..matchup.games)
@@ -273,8 +278,7 @@ fn main() {
             AIType::ML1 => "ML1".to_string(),
             AIType::ML2 => "ML2".to_string(),
         };
-        writeln!(
-            wtr,
+        println!(
             "{}\t{}\t{}\t{:.3}\t{:.3}\t{:.4}\t{:.4}",
             matchup.name,
             p1_label,
@@ -283,8 +287,6 @@ fn main() {
             win_rate_p2,
             avg_time_ms_p1,
             avg_time_ms_p2
-        )
-        .unwrap();
-        println!("{}: {} vs {} => win_rate_p1={:.3}, win_rate_p2={:.3}, avg_time_ms_p1={:.4}, avg_time_ms_p2={:.4}", matchup.name, p1_label, p2_label, win_rate_p1, win_rate_p2, avg_time_ms_p1, avg_time_ms_p2);
+        );
     }
 }
