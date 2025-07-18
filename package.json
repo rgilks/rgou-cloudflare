@@ -6,7 +6,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm run generate:sw && next dev --turbopack",
+    "dev": "npm run generate:sw && npm run build:wasm-assets && next dev --turbopack",
     "build": "npm run generate:sw && npm run build:wasm-assets && next build",
     "build:cf": "npm run generate:sw && npx @opennextjs/cloudflare build",
     "start": "next start",

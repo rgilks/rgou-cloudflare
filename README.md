@@ -173,4 +173,4 @@ For more details, see `docs/ml-ai-system.md` and `src/lib/ml-ai.worker.ts`.
 
 ## License
 
-Open source. See [LICENSE](LICENSE).
+See [LICENSE](./LICENSE) for the main project license (MIT/Apache-2.0 dual license).
