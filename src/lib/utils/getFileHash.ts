@@ -1,5 +1,4 @@
 export async function getFileHash(filePath: string): Promise<string> {
-  
   if (typeof window === 'undefined' && typeof process !== 'undefined') {
     try {
       const { createHash } = await import('crypto');
