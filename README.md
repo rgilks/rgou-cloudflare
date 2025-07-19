@@ -44,7 +44,7 @@ For developers who want to run locally or contribute:
 - [Git](https://git-scm.com/downloads)
 - [Node.js (v20+)](https://nodejs.org/)
 - [Rust & Cargo](https://www.rust-lang.org/tools/install)
-- `cargo install wasm-pack --version 0.13.1`
+- `cargo install wasm-pack`
 - [Python 3.10+](https://www.python.org/downloads/) (for ML training, optional)
 - Install ML dependencies (for training, optional):
   - `pip install -r ml/requirements.txt`
@@ -84,7 +84,7 @@ All files and scripts related to ML model training, weights, and utilities are n
 - Install ML dependencies:
   - `pip install -r ml/requirements.txt`
 - [Rust & Cargo](https://www.rust-lang.org/tools/install)
-- `cargo install wasm-pack --version 0.13.1`
+- `cargo install wasm-pack`
 
 ### Training
 
@@ -93,3 +93,82 @@ To train the ML AI from scratch:
 ```bash
 npm run train:ml
 ```
+
+These scripts now use the new path: `ml/scripts/train_ml_ai.py`.
+
+### Loading Weights
+
+After training, load the weights into the app:
+
+```bash
+npm run load:ml-weights
+```
+
+This uses `ml/scripts/load-ml-weights.ts`.
+
+### Testing and Utilities
+
+- Run ML vs. Classic AI: `ml/scripts/test_ml_vs_expectiminimax.sh`
+- Check training status: `ml/scripts/check_training_status.sh`
+- Build Rust AI core: `ml/scripts/build_rust_ai.sh`
+- **Run E2E tests (headless):** `npm run test:e2e`
+- **Run E2E tests (UI):** `npm run test:e2e:ui`
+
+## How to Use the ML AI (WASM)
+
+The ML AI is a neural network-based opponent that runs efficiently in your browser via WebAssembly. You can play against it, or watch it compete against the Classic AI.
+
+### ML AI WASM Interface
+
+The ML AI is exposed to TypeScript via the following interface:
+
+```ts
+interface MLWasmModule {
+  default: (input?: string | URL) => Promise<unknown>;
+  init_ml_ai: () => void;
+  load_ml_weights: (valueWeights: number[], policyWeights: number[]) => void;
+  get_ml_ai_move: (gameState: unknown) => string;
+  evaluate_ml_position: (gameState: unknown) => string;
+  get_ml_ai_info: () => string;
+  roll_dice_ml: () => number;
+}
+```
+
+### WASM Asset Files
+
+- `public/wasm/rgou_ai_core.js`
+- `public/wasm/rgou_ai_core_bg.wasm`
+
+### Loading Weights
+
+To load weights into the ML AI:
+
+```ts
+mlWasmModule.load_ml_weights(valueWeights, policyWeights);
+```
+
+where `valueWeights` and `policyWeights` are arrays of numbers (float32) representing the neural network weights.
+
+### Usage
+
+- The ML AI worker loads the WASM module and initializes the ML AI with `init_ml_ai()`.
+- Weights must be loaded before requesting moves or evaluations.
+- Use `get_ml_ai_move(gameState)` to get the best move for a given game state.
+- Use `evaluate_ml_position(gameState)` to get a value network evaluation for a game state.
+
+For more details, see `docs/ml-ai-system.md` and `src/lib/ml-ai.worker.ts`.
+
+## Documentation
+
+- [ML AI System](./docs/ml-ai-system.md)
+- [AI Improvement Roadmap](./docs/ai-improvement-roadmap.md)
+- [High Priority TODOs](./docs/high-priority-todos.md)
+- [AI System (Classic)](./docs/ai-system.md)
+- [Architecture Overview](./docs/architecture-overview.md)
+- [Game Rules and Strategy](./docs/game-rules-strategy.md)
+- [Technical Implementation](./docs/technical-implementation.md)
+- [Testing Strategy](./docs/testing-strategy.md)
+
+## License
+
+Open source. See [LICENSE](LICENSE).
