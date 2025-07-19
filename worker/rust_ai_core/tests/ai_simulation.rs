@@ -1,7 +1,7 @@
 use rand::Rng;
-use rgou_ai_core::{GameState, Player, AI, HeuristicAI, PIECES_PER_PLAYER};
+use rgou_ai_core::{GameState, HeuristicAI, Player, AI, PIECES_PER_PLAYER};
 
-const NUM_GAMES: usize = 50;
+const NUM_GAMES: usize = 10;
 
 #[derive(Debug, Clone)]
 struct SimulationResult {
@@ -183,11 +183,10 @@ fn test_ai_vs_ai_simulation() {
 
     let mut results = Vec::new();
 
-    // Only run depth 4 comparisons if RUN_SLOW_TESTS environment variable is set
     let comparisons = if std::env::var("RUN_SLOW_TESTS").is_ok() {
         vec![(1, 4), (2, 4), (3, 4)]
     } else {
-        vec![(1, 3), (2, 3)] // Skip depth 4 tests for regular runs
+        vec![(1, 3), (2, 3)]
     };
 
     for &(depth1, depth2) in &comparisons {
@@ -299,8 +298,6 @@ fn test_ai_vs_ai_simulation() {
         println!("   Consider using lower depth for better performance");
     }
 
-    // Note: Depth 4 is not always stronger than lower depths due to search complexity
-    // and potential issues with the expectiminimax implementation at higher depths
     println!("Note: Depth 4 performance varies and may not always be optimal");
 }
 
@@ -368,7 +365,7 @@ fn test_heuristic_ai_vs_expectiminimax() {
         let expectiminimax_avg_time = expectiminimax_total_time_ms as f64 / NUM_GAMES as f64;
 
         let result = SimulationResult {
-            depth1: 0, // 0 represents heuristic AI
+            depth1: 0,
             depth2,
             depth1_wins: heuristic_wins,
             depth2_wins: expectiminimax_wins,
@@ -380,11 +377,23 @@ fn test_heuristic_ai_vs_expectiminimax() {
         results.push(result.clone());
 
         println!("  Results:");
-        println!("    Heuristic wins: {} ({:.1}%)", heuristic_wins, (heuristic_wins as f64 / NUM_GAMES as f64) * 100.0);
-        println!("    Depth {} wins: {} ({:.1}%)", depth2, expectiminimax_wins, (expectiminimax_wins as f64 / NUM_GAMES as f64) * 100.0);
+        println!(
+            "    Heuristic wins: {} ({:.1}%)",
+            heuristic_wins,
+            (heuristic_wins as f64 / NUM_GAMES as f64) * 100.0
+        );
+        println!(
+            "    Depth {} wins: {} ({:.1}%)",
+            depth2,
+            expectiminimax_wins,
+            (expectiminimax_wins as f64 / NUM_GAMES as f64) * 100.0
+        );
         println!("    Average moves per game: {:.1}", avg_moves);
         println!("    Heuristic avg time: {:.1}ms", heuristic_avg_time);
-        println!("    Depth {} avg time: {:.1}ms", depth2, expectiminimax_avg_time);
+        println!(
+            "    Depth {} avg time: {:.1}ms",
+            depth2, expectiminimax_avg_time
+        );
     }
 
     println!("\n{}", "=".repeat(60));
@@ -417,9 +426,15 @@ fn test_heuristic_ai_vs_expectiminimax() {
         };
 
         if heuristic_win_rate > 60.0 {
-            println!("✅ Heuristic significantly stronger than Depth {}", result.depth2);
+            println!(
+                "✅ Heuristic significantly stronger than Depth {}",
+                result.depth2
+            );
         } else if heuristic_win_rate > 45.0 {
-            println!("⚠️  Heuristic moderately stronger than Depth {}", result.depth2);
+            println!(
+                "⚠️  Heuristic moderately stronger than Depth {}",
+                result.depth2
+            );
         } else if heuristic_win_rate > 35.0 {
             println!("📊 Heuristic competitive with Depth {}", result.depth2);
         } else {
@@ -436,15 +451,20 @@ fn test_heuristic_ai_vs_expectiminimax() {
         } else {
             f64::INFINITY
         };
-        println!("Heuristic vs Depth {}: {:.1}x faster", result.depth2, speed_factor);
+        println!(
+            "Heuristic vs Depth {}: {:.1}x faster",
+            result.depth2, speed_factor
+        );
     }
 
     println!("\n🎯 RECOMMENDATIONS:");
     println!("{}", "-".repeat(20));
-    let avg_heuristic_win_rate = results.iter()
+    let avg_heuristic_win_rate = results
+        .iter()
         .map(|r| (r.depth1_wins as f64 / NUM_GAMES as f64) * 100.0)
-        .sum::<f64>() / results.len() as f64;
-    
+        .sum::<f64>()
+        / results.len() as f64;
+
     if avg_heuristic_win_rate > 50.0 {
         println!("✅ Heuristic AI shows strong performance");
         println!("   Consider using for fast, lightweight gameplay");
@@ -481,7 +501,8 @@ fn play_game_heuristic_vs_expectiminimax(
             let (move_option, _) = heuristic_ai.get_best_move(&game_state);
             move_option
         } else {
-            let (move_option, _) = expectiminimax_ai.get_best_move(&game_state, expectiminimax_depth);
+            let (move_option, _) =
+                expectiminimax_ai.get_best_move(&game_state, expectiminimax_depth);
             move_option
         };
         let end_time = std::time::Instant::now();

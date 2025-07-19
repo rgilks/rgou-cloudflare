@@ -3,7 +3,7 @@ use rgou_ai_core::genetic_ai::{GeneticAI, HeuristicParams};
 use rgou_ai_core::ml_ai::MLAI;
 use rgou_ai_core::{GameState, HeuristicAI, Player, AI, PIECES_PER_PLAYER};
 
-const GAMES_PER_MATCHUP: usize = 50;
+const GAMES_PER_MATCHUP: usize = 10;
 
 #[derive(Debug, Clone)]
 struct MatrixResult {

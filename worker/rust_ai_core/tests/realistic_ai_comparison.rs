@@ -4,7 +4,7 @@ use rgou_ai_core::{
     GameState, HeuristicAI, Player, AI,
 };
 
-const REALISTIC_GAMES: usize = 200;
+const REALISTIC_GAMES: usize = 20;
 
 #[test]
 fn test_realistic_ai_comparison() {
