@@ -449,7 +449,6 @@ fn print_detailed_analysis(ai_types: &[AIType], results: &[MatrixResult]) {
         ai_performance.push((ai.clone(), win_rate, avg_time));
     }
 
-
     ai_performance.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
     println!("🏆 AI RANKING BY WIN RATE:");
@@ -463,7 +462,6 @@ fn print_detailed_analysis(ai_types: &[AIType], results: &[MatrixResult]) {
         println!("{:<15} {:<12.1}% {:<15.1}ms", ai.name(), win_rate, avg_time);
     }
     println!();
-
 
     println!("⚡ PERFORMANCE ANALYSIS:");
     println!("{}", "-".repeat(30));
@@ -499,7 +497,6 @@ fn print_detailed_analysis(ai_types: &[AIType], results: &[MatrixResult]) {
 fn print_recommendations(ai_types: &[AIType], results: &[MatrixResult]) {
     println!("🎯 RECOMMENDATIONS");
     println!("{}", "-".repeat(25));
-
 
     let mut best_ai = None;
     let mut best_win_rate = 0.0;

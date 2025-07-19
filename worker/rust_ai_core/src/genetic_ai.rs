@@ -6,36 +6,23 @@ use std::time::Instant;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HeuristicParams {
-    // Core game objectives
     pub win_score: i32,
     pub finished_piece_value: i32,
-
-    // Position evaluation
     pub position_weight: i32,
     pub advancement_bonus: i32,
-
-    // Safety and control
-    pub rosette_safety_bonus: i32, // Combined safety + control
+    pub rosette_safety_bonus: i32,
     pub rosette_chain_bonus: i32,
-
-    // Tactical elements
     pub capture_bonus: i32,
     pub vulnerability_penalty: i32,
-
-    // Strategic positioning
-    pub center_control_bonus: i32, // Combined center lane + dominance
+    pub center_control_bonus: i32,
     pub piece_coordination_bonus: i32,
     pub blocking_bonus: i32,
-
-    // Game phase awareness
-    pub early_game_bonus: i32, // New: early development
+    pub early_game_bonus: i32,
     pub late_game_urgency: i32,
     pub turn_order_bonus: i32,
-
-    // Advanced tactics
-    pub mobility_bonus: i32,            // New: move availability
-    pub attack_pressure_bonus: i32,     // New: threatening opponent
-    pub defensive_structure_bonus: i32, // New: overall defense
+    pub mobility_bonus: i32,
+    pub attack_pressure_bonus: i32,
+    pub defensive_structure_bonus: i32,
 }
 
 impl HeuristicParams {
@@ -94,93 +81,77 @@ impl HeuristicParams {
         let mut rng = thread_rng();
         let mut new_params = self.clone();
 
-        // Enhanced mutation with adaptive ranges and parameter-specific tuning
+
         if rng.gen_bool(mutation_rate) {
-            // Win score: larger range for significant changes
+
             new_params.win_score = (new_params.win_score as f64 * rng.gen_range(0.7..1.3)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Finished piece value: moderate range
             new_params.finished_piece_value =
                 (new_params.finished_piece_value as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Position weight: fine-tuning range
             new_params.position_weight =
                 (new_params.position_weight as f64 * rng.gen_range(0.9..1.1)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Advancement bonus: fine-tuning range
             new_params.advancement_bonus =
                 (new_params.advancement_bonus as f64 * rng.gen_range(0.9..1.1)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Rosette safety bonus: moderate range
             new_params.rosette_safety_bonus =
                 (new_params.rosette_safety_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Rosette chain bonus: moderate range
             new_params.rosette_chain_bonus =
                 (new_params.rosette_chain_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Capture bonus: moderate range
             new_params.capture_bonus =
                 (new_params.capture_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Vulnerability penalty: moderate range
             new_params.vulnerability_penalty =
                 (new_params.vulnerability_penalty as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Center control bonus: moderate range
             new_params.center_control_bonus =
                 (new_params.center_control_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Piece coordination bonus: moderate range
             new_params.piece_coordination_bonus =
                 (new_params.piece_coordination_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Blocking bonus: moderate range
             new_params.blocking_bonus =
                 (new_params.blocking_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Early game bonus: moderate range
             new_params.early_game_bonus =
                 (new_params.early_game_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Late game urgency: larger range for significant changes
             new_params.late_game_urgency =
                 (new_params.late_game_urgency as f64 * rng.gen_range(0.7..1.3)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Turn order bonus: fine-tuning range
             new_params.turn_order_bonus =
                 (new_params.turn_order_bonus as f64 * rng.gen_range(0.9..1.1)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Mobility bonus: moderate range
             new_params.mobility_bonus =
                 (new_params.mobility_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Attack pressure bonus: moderate range
             new_params.attack_pressure_bonus =
                 (new_params.attack_pressure_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
-            // Defensive structure bonus: moderate range
             new_params.defensive_structure_bonus =
                 (new_params.defensive_structure_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
 
-        // Ensure parameters stay within reasonable bounds
+
         new_params.win_score = new_params.win_score.max(1000).min(20000);
         new_params.finished_piece_value = new_params.finished_piece_value.max(100).min(3000);
         new_params.position_weight = new_params.position_weight.max(1).min(100);
@@ -334,6 +305,10 @@ impl GeneticAI {
         }
     }
 
+    pub fn get_params(&self) -> &HeuristicParams {
+        &self.params
+    }
+
     pub fn get_best_move(&mut self, state: &GameState) -> (Option<u8>, Vec<crate::MoveEvaluation>) {
         self.nodes_evaluated = 0;
         let valid_moves = state.get_valid_moves();
@@ -414,7 +389,7 @@ impl GeneticAI {
         (best_move, move_evaluations)
     }
 
-    fn evaluate_with_params(&self, state: &GameState, params: &HeuristicParams) -> i32 {
+    pub fn evaluate_with_params(&self, state: &GameState, params: &HeuristicParams) -> i32 {
         let mut p1_finished = 0;
         let mut p2_finished = 0;
         let mut p1_on_board = 0;
@@ -455,7 +430,7 @@ impl GeneticAI {
         score += p2_strategic_score - p1_strategic_score;
         score += self.evaluate_board_control_with_params(state, params);
 
-        // Add new strategic evaluations
+
         score += self.evaluate_piece_coordination_with_params(state, params);
         score += self.evaluate_vulnerability_with_params(state, params);
         score += self.evaluate_blocking_with_params(state, params);
@@ -588,7 +563,7 @@ impl GeneticAI {
         }
     }
 
-    // Helper methods for calculations
+
     fn calculate_piece_coordination(&self, state: &GameState, player: Player) -> i32 {
         let pieces = state.get_pieces(player);
         let mut coordination = 0;
@@ -618,7 +593,7 @@ impl GeneticAI {
         for piece in pieces {
             if piece.square >= 0 && piece.square < crate::BOARD_SIZE as i8 {
                 if !GameState::is_rosette(piece.square as u8) {
-                    // Check if piece can be captured by opponent
+        
                     let opponent = player.opponent();
                     let opponent_pieces = state.get_pieces(opponent);
                     for opp_piece in opponent_pieces {
@@ -818,7 +793,7 @@ impl GeneticAlgorithm {
         }
 
         let evolution_start = Instant::now();
-        
+
         for generation in 0..generations {
             let generation_start = Instant::now();
             println!("Generation {}: Evaluating fitness...", generation);
@@ -834,7 +809,7 @@ impl GeneticAlgorithm {
             let best_individual = &population[0];
             let generation_time = generation_start.elapsed();
             let total_time = evolution_start.elapsed();
-            
+
             println!(
                 "Best fitness: {:.4}, win rate: {:.2}% (Gen: {:.1}s, Total: {:.1}s)",
                 best_individual.fitness,

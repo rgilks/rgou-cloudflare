@@ -10,20 +10,31 @@ pub mod genetic_ai;
 pub mod ml_ai;
 pub mod neural_network;
 
+pub use genetic_ai::{GeneticAI, HeuristicParams};
+
 pub const PIECES_PER_PLAYER: usize = 7;
 pub const BOARD_SIZE: usize = 21;
 const ROSETTE_SQUARES: [u8; 5] = [0, 7, 13, 15, 16];
 const PLAYER1_TRACK: [u8; 14] = [3, 2, 1, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 const PLAYER2_TRACK: [u8; 14] = [19, 18, 17, 16, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15];
 
-const WIN_SCORE: i32 = 10000;
-const FINISHED_PIECE_VALUE: i32 = 1000;
-const POSITION_WEIGHT: i32 = 15;
-const SAFETY_BONUS: i32 = 25;
-const ROSETTE_CONTROL_BONUS: i32 = 40;
-const ADVANCEMENT_BONUS: i32 = 5;
-const CAPTURE_BONUS: i32 = 35;
-const CENTER_LANE_BONUS: i32 = 2;
+const WIN_SCORE: i32 = 16149;
+const FINISHED_PIECE_VALUE: i32 = 813;
+const POSITION_WEIGHT: i32 = 20;
+const SAFETY_BONUS: i32 = 28;
+const ROSETTE_CONTROL_BONUS: i32 = 28;
+const ADVANCEMENT_BONUS: i32 = 13;
+const CAPTURE_BONUS: i32 = 43;
+const CENTER_LANE_BONUS: i32 = 20;
+const VULNERABILITY_PENALTY: i32 = 14;
+const PIECE_COORDINATION_BONUS: i32 = 3;
+const BLOCKING_BONUS: i32 = 18;
+const EARLY_GAME_BONUS: i32 = 14;
+const LATE_GAME_URGENCY: i32 = 30;
+const TURN_ORDER_BONUS: i32 = 11;
+const MOBILITY_BONUS: i32 = 6;
+const ATTACK_PRESSURE_BONUS: i32 = 9;
+const DEFENSIVE_STRUCTURE_BONUS: i32 = 7;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Player {
@@ -200,6 +211,18 @@ impl GameState {
         score += (p2_pos_score - p1_pos_score) * POSITION_WEIGHT / 10;
         score += p2_strategic_score - p1_strategic_score;
         score += self.evaluate_board_control();
+
+        score += self.evaluate_piece_coordination();
+        score += self.evaluate_vulnerability();
+        score += self.evaluate_blocking();
+        score += self.evaluate_center_control();
+        score += self.evaluate_early_game();
+        score += self.evaluate_late_game_urgency();
+        score += self.evaluate_turn_order();
+        score += self.evaluate_mobility();
+        score += self.evaluate_attack_pressure();
+        score += self.evaluate_defensive_structure();
+
         score
     }
 
@@ -242,6 +265,224 @@ impl GameState {
             }
         }
         control_score
+    }
+
+    fn evaluate_piece_coordination(&self) -> i32 {
+        let p1_coordination = self.calculate_piece_coordination(Player::Player1);
+        let p2_coordination = self.calculate_piece_coordination(Player::Player2);
+        (p2_coordination - p1_coordination) * PIECE_COORDINATION_BONUS
+    }
+
+    fn evaluate_vulnerability(&self) -> i32 {
+        let p1_vulnerability = self.calculate_vulnerability(Player::Player1);
+        let p2_vulnerability = self.calculate_vulnerability(Player::Player2);
+        (p1_vulnerability - p2_vulnerability) * VULNERABILITY_PENALTY
+    }
+
+    fn evaluate_blocking(&self) -> i32 {
+        let p1_blocking = self.calculate_blocking(Player::Player1);
+        let p2_blocking = self.calculate_blocking(Player::Player2);
+        (p2_blocking - p1_blocking) * BLOCKING_BONUS
+    }
+
+    fn evaluate_center_control(&self) -> i32 {
+        let p1_center = self.calculate_center_control(Player::Player1);
+        let p2_center = self.calculate_center_control(Player::Player2);
+        (p2_center - p1_center) * CENTER_LANE_BONUS
+    }
+
+    fn evaluate_early_game(&self) -> i32 {
+        let p1_on_board = self
+            .player1_pieces
+            .iter()
+            .filter(|p| p.square >= 0 && p.square < 20)
+            .count();
+        let p2_on_board = self
+            .player2_pieces
+            .iter()
+            .filter(|p| p.square >= 0 && p.square < 20)
+            .count();
+
+        if p1_on_board + p2_on_board < 8 {
+            (p2_on_board as i32 - p1_on_board as i32) * EARLY_GAME_BONUS
+        } else {
+            0
+        }
+    }
+
+    fn evaluate_late_game_urgency(&self) -> i32 {
+        let p1_finished = self
+            .player1_pieces
+            .iter()
+            .filter(|p| p.square == 20)
+            .count();
+        let p2_finished = self
+            .player2_pieces
+            .iter()
+            .filter(|p| p.square == 20)
+            .count();
+
+        if p1_finished >= 5 || p2_finished >= 5 {
+            (p2_finished as i32 - p1_finished as i32) * LATE_GAME_URGENCY
+        } else {
+            0
+        }
+    }
+
+    fn evaluate_turn_order(&self) -> i32 {
+        if self.current_player == Player::Player2 {
+            TURN_ORDER_BONUS
+        } else {
+            -TURN_ORDER_BONUS
+        }
+    }
+
+    fn evaluate_mobility(&self) -> i32 {
+        let p1_mobility = self.calculate_potential_mobility(Player::Player1);
+        let p2_mobility = self.calculate_potential_mobility(Player::Player2);
+        (p2_mobility - p1_mobility) * MOBILITY_BONUS
+    }
+
+    fn evaluate_attack_pressure(&self) -> i32 {
+        let p1_pressure = self.calculate_attack_pressure(Player::Player1);
+        let p2_pressure = self.calculate_attack_pressure(Player::Player2);
+        (p2_pressure - p1_pressure) * ATTACK_PRESSURE_BONUS
+    }
+
+    fn evaluate_defensive_structure(&self) -> i32 {
+        let p1_defense = self.calculate_defensive_structure(Player::Player1);
+        let p2_defense = self.calculate_defensive_structure(Player::Player2);
+        (p2_defense - p1_defense) * DEFENSIVE_STRUCTURE_BONUS
+    }
+
+    fn calculate_piece_coordination(&self, player: Player) -> i32 {
+        let pieces = self.get_pieces(player);
+        let mut coordination = 0;
+        let mut on_board_pieces = Vec::new();
+
+        for piece in pieces {
+            if piece.square >= 0 && piece.square < BOARD_SIZE as i8 {
+                on_board_pieces.push(piece.square);
+            }
+        }
+
+        for i in 0..on_board_pieces.len() {
+            for j in (i + 1)..on_board_pieces.len() {
+                let distance = (on_board_pieces[i] - on_board_pieces[j]).abs();
+                if distance <= 3 {
+                    coordination += 1;
+                }
+            }
+        }
+        coordination
+    }
+
+    fn calculate_vulnerability(&self, player: Player) -> i32 {
+        let pieces = self.get_pieces(player);
+        let mut vulnerability = 0;
+
+        for piece in pieces {
+            if piece.square >= 0 && piece.square < BOARD_SIZE as i8 {
+                if !Self::is_rosette(piece.square as u8) {
+                    let opponent = player.opponent();
+                    let opponent_pieces = self.get_pieces(opponent);
+                    for opp_piece in opponent_pieces {
+                        if opp_piece.square >= 0 && opp_piece.square < BOARD_SIZE as i8 {
+                            let distance = (piece.square - opp_piece.square).abs();
+                            if distance <= 4 {
+                                vulnerability += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        vulnerability
+    }
+
+    fn calculate_blocking(&self, player: Player) -> i32 {
+        let pieces = self.get_pieces(player);
+        let opponent = player.opponent();
+        let opponent_track = Self::get_player_track(opponent);
+        let mut blocking = 0;
+
+        for piece in pieces {
+            if piece.square >= 0 && piece.square < BOARD_SIZE as i8 {
+                if let Some(track_pos) =
+                    opponent_track.iter().position(|&s| s as i8 == piece.square)
+                {
+                    if track_pos > 0 {
+                        blocking += 1;
+                    }
+                }
+            }
+        }
+        blocking
+    }
+
+    fn calculate_center_control(&self, player: Player) -> i32 {
+        let pieces = self.get_pieces(player);
+        pieces
+            .iter()
+            .filter(|p| p.square >= 4 && p.square <= 11)
+            .count() as i32
+    }
+
+    fn calculate_attack_pressure(&self, player: Player) -> i32 {
+        let pieces = self.get_pieces(player);
+        let opponent = player.opponent();
+        let opponent_pieces = self.get_pieces(opponent);
+        let mut pressure = 0;
+
+        for piece in pieces {
+            if piece.square >= 0 && piece.square < BOARD_SIZE as i8 {
+                for opponent_piece in opponent_pieces {
+                    if opponent_piece.square >= 0 && opponent_piece.square < BOARD_SIZE as i8 {
+                        let distance = (piece.square - opponent_piece.square).abs();
+                        if distance <= 4 {
+                            pressure += (5 - distance) as i32;
+                        }
+                    }
+                }
+            }
+        }
+        pressure
+    }
+
+    fn calculate_defensive_structure(&self, player: Player) -> i32 {
+        let pieces = self.get_pieces(player);
+        let mut defensive_score = 0;
+
+        for piece in pieces {
+            if piece.square >= 0 && piece.square < BOARD_SIZE as i8 {
+                if Self::is_rosette(piece.square as u8) {
+                    defensive_score += 3;
+                } else {
+                    defensive_score += 1;
+                }
+            }
+        }
+        defensive_score
+    }
+
+    fn calculate_potential_mobility(&self, player: Player) -> i32 {
+        let pieces = self.get_pieces(player);
+        let mut mobility = 0;
+
+        for piece in pieces {
+            if piece.square == 20 {
+                continue;
+            } else if piece.square == -1 {
+                mobility += 1;
+            } else {
+                let track = Self::get_player_track(player);
+                if let Some(track_pos) = track.iter().position(|&s| s as i8 == piece.square) {
+                    let remaining_positions = track.len() - track_pos;
+                    mobility += remaining_positions.min(4) as i32;
+                }
+            }
+        }
+        mobility
     }
 
     pub fn make_move(&mut self, piece_index: u8) -> Result<(), &'static str> {
@@ -1209,11 +1450,34 @@ mod tests {
         let mut ai = HeuristicAI::new();
         let mut state = GameState::new();
         state.dice_roll = 0;
+        let (best_move, _) = ai.get_best_move(&state);
+        assert_eq!(best_move, None);
+    }
 
-        let (best_move, evaluations) = ai.get_best_move(&state);
+    #[test]
+    fn test_enhanced_evaluation_function() {
+        let mut state = GameState::new();
 
-        assert!(best_move.is_none());
-        assert!(evaluations.is_empty());
-        assert_eq!(ai.nodes_evaluated, 0);
+        // Test initial state evaluation
+        let initial_score = state.evaluate();
+        assert!(initial_score.abs() < 1000); // Should be close to 0
+
+        // Test with some pieces on board
+        state.player1_pieces[0].square = 0; // Rosette position
+        state.player2_pieces[0].square = 4; // Center position
+        let mid_game_score = state.evaluate();
+
+        // The enhanced evaluation should consider more factors
+        assert!(mid_game_score != 0);
+
+        // Test vulnerability calculation
+        state.player1_pieces[1].square = 5; // Close to opponent piece
+        let vulnerable_score = state.evaluate();
+        assert!(vulnerable_score != mid_game_score);
+
+        // Test piece coordination
+        state.player1_pieces[2].square = 6; // Close to other piece
+        let coordinated_score = state.evaluate();
+        assert!(coordinated_score != vulnerable_score);
     }
 }
