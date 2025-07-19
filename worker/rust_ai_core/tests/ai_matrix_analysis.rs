@@ -1,4 +1,5 @@
 use rand::Rng;
+use rgou_ai_core::genetic_ai::{GeneticAI, HeuristicParams};
 use rgou_ai_core::ml_ai::MLAI;
 use rgou_ai_core::{GameState, HeuristicAI, Player, AI, PIECES_PER_PLAYER};
 
@@ -45,6 +46,7 @@ enum AIType {
     Heuristic,
     Expectiminimax(u8),
     ML,
+    Genetic,
 }
 
 impl AIType {
@@ -54,6 +56,7 @@ impl AIType {
             AIType::Heuristic => "Heuristic".to_string(),
             AIType::Expectiminimax(depth) => format!("EMM-{}", depth),
             AIType::ML => "ML".to_string(),
+            AIType::Genetic => "Genetic".to_string(),
         }
     }
 
@@ -63,6 +66,7 @@ impl AIType {
             AIType::Heuristic => "H".to_string(),
             AIType::Expectiminimax(depth) => format!("E{}", depth),
             AIType::ML => "M".to_string(),
+            AIType::Genetic => "G".to_string(),
         }
     }
 }
@@ -82,6 +86,7 @@ fn test_comprehensive_ai_matrix() {
         AIType::Expectiminimax(2),
         AIType::Expectiminimax(3),
         AIType::ML,
+        AIType::Genetic,
     ];
 
     let mut results = Vec::new();
@@ -196,6 +201,20 @@ fn play_game_ai_vs_ai(
     let mut ml_ai1 = MLAI::new();
     let mut ml_ai2 = MLAI::new();
 
+    // Create evolved parameters from our genetic algorithm run
+    let evolved_params = HeuristicParams {
+        win_score: 7286,
+        finished_piece_value: 1104,
+        position_weight: 34,
+        safety_bonus: 27,
+        rosette_control_bonus: 12,
+        advancement_bonus: 14,
+        capture_bonus: 26,
+        center_lane_bonus: 5,
+    };
+    let mut genetic_ai1 = GeneticAI::new(evolved_params.clone());
+    let mut genetic_ai2 = GeneticAI::new(evolved_params);
+
     loop {
         let current_player = game_state.current_player;
         let is_ai1_turn = (current_player == Player::Player1) == ai1_plays_first;
@@ -216,6 +235,7 @@ fn play_game_ai_vs_ai(
                 &mut expectiminimax_ai1_depth3,
                 &mut heuristic_ai1,
                 &mut ml_ai1,
+                &mut genetic_ai1,
                 &game_state,
             )
         } else {
@@ -226,6 +246,7 @@ fn play_game_ai_vs_ai(
                 &mut expectiminimax_ai2_depth3,
                 &mut heuristic_ai2,
                 &mut ml_ai2,
+                &mut genetic_ai2,
                 &game_state,
             )
         };
@@ -302,6 +323,7 @@ fn get_ai_move(
     expectiminimax_ai_depth3: &mut AI,
     heuristic_ai: &mut HeuristicAI,
     ml_ai: &mut MLAI,
+    genetic_ai: &mut GeneticAI,
     game_state: &GameState,
 ) -> Option<u8> {
     match ai_type {
@@ -329,6 +351,10 @@ fn get_ai_move(
         AIType::ML => {
             let response = ml_ai.get_best_move(game_state);
             response.r#move
+        }
+        AIType::Genetic => {
+            let (move_option, _) = genetic_ai.get_best_move(game_state);
+            move_option
         }
     }
 }

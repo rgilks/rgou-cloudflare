@@ -1,5 +1,9 @@
 use super::{GameState, PiecePosition, Player, AI};
-use crate::{ml_ai::MLAI, MoveEvaluation};
+use crate::{
+    genetic_ai::{GeneticAI, HeuristicParams},
+    ml_ai::MLAI,
+    MoveEvaluation,
+};
 use js_sys;
 use lazy_static::lazy_static;
 use rand::Rng;
@@ -10,6 +14,7 @@ use wasm_bindgen::prelude::*;
 lazy_static! {
     static ref ML_AI_INSTANCE: Mutex<Option<MLAI>> = Mutex::new(None);
     static ref CLASSIC_AI_INSTANCE: Mutex<Option<AI>> = Mutex::new(None);
+    static ref GENETIC_AI_INSTANCE: Mutex<Option<GeneticAI>> = Mutex::new(None);
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -402,6 +407,83 @@ pub fn get_classic_ai_move_optimized(game_state_request_js: JsValue) -> Result<J
             valid_moves: game_state.get_valid_moves(),
             move_evaluations: move_evaluations_wasm,
             transposition_hits: ai.transposition_hits as usize,
+            nodes_evaluated: ai.nodes_evaluated as u64,
+        },
+    };
+
+    let response_json = serde_json::to_string(&response)
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize response: {}", e)))?;
+
+    Ok(JsValue::from_str(&response_json))
+}
+
+#[wasm_bindgen]
+pub fn init_genetic_ai() -> Result<JsValue, JsValue> {
+    let genetic_ai = GeneticAI::new(HeuristicParams::new());
+    let mut instance = GENETIC_AI_INSTANCE.lock().unwrap();
+    *instance = Some(genetic_ai);
+
+    let response = serde_json::to_string(&"Genetic AI initialized with default parameters")
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize response: {}", e)))?;
+    Ok(JsValue::from_str(&response))
+}
+
+#[wasm_bindgen]
+pub fn init_genetic_ai_with_params(params_js: JsValue) -> Result<JsValue, JsValue> {
+    let params: HeuristicParams =
+        serde_wasm_bindgen::from_value(params_js).map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+    let genetic_ai = GeneticAI::new(params);
+    let mut instance = GENETIC_AI_INSTANCE.lock().unwrap();
+    *instance = Some(genetic_ai);
+
+    let response = serde_json::to_string(&"Genetic AI initialized with custom parameters")
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize response: {}", e)))?;
+    Ok(JsValue::from_str(&response))
+}
+
+#[wasm_bindgen]
+pub fn get_genetic_ai_move(game_state_request_js: JsValue) -> Result<JsValue, JsValue> {
+    let game_state_request: GameStateRequest =
+        serde_wasm_bindgen::from_value(game_state_request_js)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+    let start_time = js_sys::Date::now();
+    let game_state = convert_request_to_game_state(&game_state_request);
+
+    let mut instance = GENETIC_AI_INSTANCE.lock().unwrap();
+    let ai = instance.as_mut().ok_or_else(|| {
+        JsValue::from_str("Genetic AI not initialized. Call init_genetic_ai() first.")
+    })?;
+
+    let (ai_move, move_evaluations) = ai.get_best_move(&game_state);
+    let evaluation = game_state.evaluate();
+    let end_time = js_sys::Date::now();
+
+    let move_evaluations_wasm: Vec<MoveEvaluationWasm> =
+        move_evaluations.iter().map(|eval| eval.into()).collect();
+
+    let response = AIResponse {
+        r#move: ai_move,
+        evaluation,
+        thinking: format!(
+            "Genetic AI chose move {:?} with score {:.1}. Evaluated {} nodes.",
+            ai_move,
+            move_evaluations_wasm
+                .first()
+                .map(|m| m.score)
+                .unwrap_or(0.0),
+            ai.nodes_evaluated
+        ),
+        timings: Timings {
+            ai_move_calculation: ((end_time - start_time) as u32).max(1),
+            total_handler_time: 0,
+        },
+        diagnostics: Diagnostics {
+            search_depth: 1, // Genetic AI is depth 1 (heuristic only)
+            valid_moves: game_state.get_valid_moves(),
+            move_evaluations: move_evaluations_wasm,
+            transposition_hits: 0,
             nodes_evaluated: ai.nodes_evaluated as u64,
         },
     };

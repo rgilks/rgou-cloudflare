@@ -6,6 +6,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 pub mod wasm_api;
 
 pub mod features;
+pub mod genetic_ai;
 pub mod ml_ai;
 pub mod neural_network;
 
@@ -373,7 +374,7 @@ impl AI {
                 let mut next_state = state.clone();
                 next_state.make_move(m).expect("Valid move should succeed");
                 let value = self.quiescence_search(&next_state, 3, f32::MIN, f32::MAX);
-                
+
                 let from_square = state.get_pieces(state.current_player)[m as usize].square;
                 let track = GameState::get_player_track(state.current_player);
                 let current_track_pos = if from_square == -1 {
@@ -408,18 +409,25 @@ impl AI {
                     to_square: Some(to_square),
                 });
             }
-            
+
             // Sort by score (best first for maximizing, worst first for minimizing)
             let is_maximizing = state.current_player == Player::Player2;
             move_evaluations.sort_by(|a, b| {
                 if is_maximizing {
-                    b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)
+                    b.score
+                        .partial_cmp(&a.score)
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 } else {
-                    a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal)
+                    a.score
+                        .partial_cmp(&b.score)
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 }
             });
-            
-            return (move_evaluations.first().map(|e| e.piece_index), move_evaluations);
+
+            return (
+                move_evaluations.first().map(|e| e.piece_index),
+                move_evaluations,
+            );
         }
 
         let is_maximizing = state.current_player == Player::Player2;
@@ -716,15 +724,13 @@ impl AI {
 
 impl HeuristicAI {
     pub fn new() -> Self {
-        HeuristicAI {
-            nodes_evaluated: 0,
-        }
+        HeuristicAI { nodes_evaluated: 0 }
     }
 
     pub fn get_best_move(&mut self, state: &GameState) -> (Option<u8>, Vec<MoveEvaluation>) {
         self.nodes_evaluated = 0;
         let valid_moves = state.get_valid_moves();
-        
+
         if valid_moves.is_empty() {
             return (None, vec![]);
         }
@@ -740,21 +746,30 @@ impl HeuristicAI {
                 let score = test_state.evaluate() as f32;
                 self.nodes_evaluated += 1;
 
-                let from_square = if state.get_pieces(state.current_player)[piece_index as usize].square == -1 {
-                    -1
-                } else {
-                    state.get_pieces(state.current_player)[piece_index as usize].square
-                };
+                let from_square =
+                    if state.get_pieces(state.current_player)[piece_index as usize].square == -1 {
+                        -1
+                    } else {
+                        state.get_pieces(state.current_player)[piece_index as usize].square
+                    };
 
-                let to_square = if test_state.get_pieces(state.current_player)[piece_index as usize].square == 20 {
+                let to_square = if test_state.get_pieces(state.current_player)[piece_index as usize]
+                    .square
+                    == 20
+                {
                     None
                 } else {
-                    Some(test_state.get_pieces(state.current_player)[piece_index as usize].square as u8)
+                    Some(
+                        test_state.get_pieces(state.current_player)[piece_index as usize].square
+                            as u8,
+                    )
                 };
 
                 let move_type = if from_square == -1 {
                     "move".to_string()
-                } else if to_square.is_some() && test_state.board[to_square.unwrap() as usize].is_some() {
+                } else if to_square.is_some()
+                    && test_state.board[to_square.unwrap() as usize].is_some()
+                {
                     "capture".to_string()
                 } else {
                     "move".to_string()
@@ -785,9 +800,13 @@ impl HeuristicAI {
         // Sort evaluations by score (best first for maximizing, worst first for minimizing)
         move_evaluations.sort_by(|a, b| {
             if is_maximizing {
-                b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)
+                b.score
+                    .partial_cmp(&a.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             } else {
-                a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal)
+                a.score
+                    .partial_cmp(&b.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             }
         });
 
@@ -1177,9 +1196,9 @@ mod tests {
         let mut ai = HeuristicAI::new();
         let mut state = GameState::new();
         state.dice_roll = 4;
-        
+
         let (best_move, evaluations) = ai.get_best_move(&state);
-        
+
         assert!(best_move.is_some());
         assert!(!evaluations.is_empty());
         assert!(ai.nodes_evaluated > 0);
@@ -1190,9 +1209,9 @@ mod tests {
         let mut ai = HeuristicAI::new();
         let mut state = GameState::new();
         state.dice_roll = 0;
-        
+
         let (best_move, evaluations) = ai.get_best_move(&state);
-        
+
         assert!(best_move.is_none());
         assert!(evaluations.is_empty());
         assert_eq!(ai.nodes_evaluated, 0);
