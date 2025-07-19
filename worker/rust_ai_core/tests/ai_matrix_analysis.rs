@@ -91,7 +91,6 @@ fn test_comprehensive_ai_matrix() {
 
     let mut results = Vec::new();
 
-    // Test each AI against every other AI
     for i in 0..ai_types.len() {
         for j in (i + 1)..ai_types.len() {
             let ai1 = &ai_types[i];
@@ -168,13 +167,10 @@ fn test_comprehensive_ai_matrix() {
         }
     }
 
-    // Print comprehensive matrix
     print_comprehensive_matrix(&ai_types, &results);
 
-    // Print detailed analysis
     print_detailed_analysis(&ai_types, &results);
 
-    // Print recommendations
     print_recommendations(&ai_types, &results);
 }
 
@@ -189,7 +185,6 @@ fn play_game_ai_vs_ai(
     let mut ai1_total_time_ms = 0;
     let mut ai2_total_time_ms = 0;
 
-    // Initialize AIs - separate instances for each depth to avoid transposition table interference
     let mut expectiminimax_ai1_depth1 = AI::new();
     let mut expectiminimax_ai1_depth2 = AI::new();
     let mut expectiminimax_ai1_depth3 = AI::new();
@@ -201,25 +196,31 @@ fn play_game_ai_vs_ai(
     let mut ml_ai1 = MLAI::new();
     let mut ml_ai2 = MLAI::new();
 
-    // Create evolved parameters from our genetic algorithm run
     let evolved_params = HeuristicParams {
-        win_score: 7286,
-        finished_piece_value: 1104,
-        position_weight: 34,
-        safety_bonus: 27,
-        rosette_control_bonus: 12,
-        advancement_bonus: 14,
-        capture_bonus: 26,
-        center_lane_bonus: 5,
+        win_score: 11610,
+        finished_piece_value: 1228,
+        position_weight: 27,
+        rosette_safety_bonus: 18,
+        rosette_chain_bonus: 7,
+        advancement_bonus: 11,
+        capture_bonus: 37,
+        vulnerability_penalty: 8,
+        center_control_bonus: 5,
+        piece_coordination_bonus: 3,
+        blocking_bonus: 18,
+        early_game_bonus: 5,
+        late_game_urgency: 12,
+        turn_order_bonus: 10,
+        mobility_bonus: 5,
+        attack_pressure_bonus: 9,
+        defensive_structure_bonus: 3,
     };
-    let mut genetic_ai1 = GeneticAI::new(evolved_params.clone());
-    let mut genetic_ai2 = GeneticAI::new(evolved_params);
 
     loop {
         let current_player = game_state.current_player;
         let is_ai1_turn = (current_player == Player::Player1) == ai1_plays_first;
 
-        game_state.dice_roll = rand::thread_rng().gen_range(0..=4);
+        game_state.dice_roll = rand::thread_rng().gen_range(1..5);
 
         if game_state.dice_roll == 0 {
             game_state.current_player = game_state.current_player.opponent();
@@ -235,8 +236,9 @@ fn play_game_ai_vs_ai(
                 &mut expectiminimax_ai1_depth3,
                 &mut heuristic_ai1,
                 &mut ml_ai1,
-                &mut genetic_ai1,
+                &mut GeneticAI::new(HeuristicParams::new()),
                 &game_state,
+                &evolved_params,
             )
         } else {
             get_ai_move(
@@ -246,8 +248,9 @@ fn play_game_ai_vs_ai(
                 &mut expectiminimax_ai2_depth3,
                 &mut heuristic_ai2,
                 &mut ml_ai2,
-                &mut genetic_ai2,
+                &mut GeneticAI::new(HeuristicParams::new()),
                 &game_state,
+                &evolved_params,
             )
         };
         let end_time = std::time::Instant::now();
@@ -270,21 +273,13 @@ fn play_game_ai_vs_ai(
                         .iter()
                         .filter(|p| p.square == 20)
                         .count();
-                    if p1_finished == PIECES_PER_PLAYER {
-                        return (
-                            Player::Player1,
-                            moves_played,
-                            ai1_total_time_ms,
-                            ai2_total_time_ms,
-                        );
+
+                    let winner = if p1_finished == PIECES_PER_PLAYER {
+                        Player::Player1
                     } else {
-                        return (
-                            Player::Player2,
-                            moves_played,
-                            ai1_total_time_ms,
-                            ai2_total_time_ms,
-                        );
-                    }
+                        Player::Player2
+                    };
+                    return (winner, moves_played, ai1_total_time_ms, ai2_total_time_ms);
                 }
             }
         } else {
@@ -323,8 +318,9 @@ fn get_ai_move(
     expectiminimax_ai_depth3: &mut AI,
     heuristic_ai: &mut HeuristicAI,
     ml_ai: &mut MLAI,
-    genetic_ai: &mut GeneticAI,
+    _genetic_ai: &mut GeneticAI,
     game_state: &GameState,
+    evolved_params: &HeuristicParams,
 ) -> Option<u8> {
     match ai_type {
         AIType::Random => {
@@ -353,6 +349,7 @@ fn get_ai_move(
             response.r#move
         }
         AIType::Genetic => {
+            let mut genetic_ai = GeneticAI::new(evolved_params.clone());
             let (move_option, _) = genetic_ai.get_best_move(game_state);
             move_option
         }
@@ -366,7 +363,6 @@ fn print_comprehensive_matrix(ai_types: &[AIType], results: &[MatrixResult]) {
     println!("Win rates (%) - Row AI vs Column AI");
     println!();
 
-    // Print header
     print!("{:<12}", "AI Type");
     for ai in ai_types {
         print!("{:<8}", ai.short_name());
@@ -374,7 +370,6 @@ fn print_comprehensive_matrix(ai_types: &[AIType], results: &[MatrixResult]) {
     println!();
     println!("{}", "-".repeat(12 + ai_types.len() * 8));
 
-    // Print matrix
     for (i, ai1) in ai_types.iter().enumerate() {
         print!("{:<12}", ai1.name());
 
@@ -382,7 +377,6 @@ fn print_comprehensive_matrix(ai_types: &[AIType], results: &[MatrixResult]) {
             if i == j {
                 print!("{:<8}", "-");
             } else if i < j {
-                // Find result for ai1 vs ai2
                 if let Some(result) = results.iter().find(|r| {
                     (r.ai1 == ai1.name() && r.ai2 == ai2.name())
                         || (r.ai1 == ai2.name() && r.ai2 == ai1.name())
@@ -397,7 +391,6 @@ fn print_comprehensive_matrix(ai_types: &[AIType], results: &[MatrixResult]) {
                     print!("{:<8}", "N/A");
                 }
             } else {
-                // Find result for ai2 vs ai1 (inverse)
                 if let Some(result) = results.iter().find(|r| {
                     (r.ai1 == ai2.name() && r.ai2 == ai1.name())
                         || (r.ai1 == ai1.name() && r.ai2 == ai2.name())
@@ -422,7 +415,6 @@ fn print_detailed_analysis(ai_types: &[AIType], results: &[MatrixResult]) {
     println!("📈 DETAILED ANALYSIS");
     println!("{}", "-".repeat(40));
 
-    // Calculate overall performance for each AI
     let mut ai_performance = Vec::new();
 
     for ai in ai_types {
@@ -457,7 +449,7 @@ fn print_detailed_analysis(ai_types: &[AIType], results: &[MatrixResult]) {
         ai_performance.push((ai.clone(), win_rate, avg_time));
     }
 
-    // Sort by win rate
+
     ai_performance.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
     println!("🏆 AI RANKING BY WIN RATE:");
@@ -472,7 +464,7 @@ fn print_detailed_analysis(ai_types: &[AIType], results: &[MatrixResult]) {
     }
     println!();
 
-    // Performance analysis
+
     println!("⚡ PERFORMANCE ANALYSIS:");
     println!("{}", "-".repeat(30));
 
@@ -508,7 +500,7 @@ fn print_recommendations(ai_types: &[AIType], results: &[MatrixResult]) {
     println!("🎯 RECOMMENDATIONS");
     println!("{}", "-".repeat(25));
 
-    // Find best performing AI
+
     let mut best_ai = None;
     let mut best_win_rate = 0.0;
 
