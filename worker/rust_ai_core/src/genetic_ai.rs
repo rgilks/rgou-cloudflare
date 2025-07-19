@@ -1,4 +1,4 @@
-use crate::{GameState, Player, PIECES_PER_PLAYER};
+use crate::{GameState, Player, PIECES_PER_PLAYER, roll_tetrahedral_dice};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::thread;
@@ -910,11 +910,10 @@ impl GeneticAlgorithm {
         let player2_params = &population[player2_idx].params;
 
         let mut state = GameState::new();
-        let mut rng = thread_rng();
         let mut moves_played = 0;
 
         while !state.is_game_over() && moves_played < 200 {
-            state.dice_roll = rng.gen_range(1..5);
+            state.dice_roll = roll_tetrahedral_dice();
             let valid_moves = state.get_valid_moves();
 
             if valid_moves.is_empty() {

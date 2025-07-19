@@ -1,7 +1,7 @@
 use rand::Rng;
 use rgou_ai_core::genetic_ai::{GeneticAI, GeneticAlgorithm, HeuristicParams};
 use rgou_ai_core::ml_ai::MLAI;
-use rgou_ai_core::{GameState, HeuristicAI, Player, AI};
+use rgou_ai_core::{GameState, HeuristicAI, Player, AI, roll_tetrahedral_dice};
 use std::time::Instant;
 
 fn main() {
@@ -331,7 +331,7 @@ fn play_single_game(
     let max_moves = 200;
 
     while !game_state.is_game_over() && moves < max_moves {
-        game_state.dice_roll = rand::thread_rng().gen_range(1..5);
+        game_state.dice_roll = roll_tetrahedral_dice();
         let valid_moves = game_state.get_valid_moves();
 
         if valid_moves.is_empty() {

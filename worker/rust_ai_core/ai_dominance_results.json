@@ -1,22 +1,22 @@
 {
   "best_genetic_params": {
-    "advancement_bonus": 5,
-    "attack_pressure_bonus": 17,
-    "blocking_bonus": 30,
-    "capture_bonus": 29,
-    "center_control_bonus": 8,
-    "defensive_structure_bonus": 8,
-    "early_game_bonus": 13,
-    "finished_piece_value": 708,
-    "late_game_urgency": 17,
-    "mobility_bonus": 9,
-    "piece_coordination_bonus": 7,
-    "position_weight": 24,
-    "rosette_chain_bonus": 11,
-    "rosette_safety_bonus": 22,
-    "turn_order_bonus": 8,
-    "vulnerability_penalty": 16,
-    "win_score": 10014
+    "advancement_bonus": 11,
+    "attack_pressure_bonus": 10,
+    "blocking_bonus": 16,
+    "capture_bonus": 38,
+    "center_control_bonus": 19,
+    "defensive_structure_bonus": 17,
+    "early_game_bonus": 20,
+    "finished_piece_value": 876,
+    "late_game_urgency": 36,
+    "mobility_bonus": 5,
+    "piece_coordination_bonus": 5,
+    "position_weight": 29,
+    "rosette_chain_bonus": 13,
+    "rosette_safety_bonus": 13,
+    "turn_order_bonus": 9,
+    "vulnerability_penalty": 15,
+    "win_score": 7273
   },
   "games_per_matchup": 25,
   "rankings": [
@@ -25,12 +25,12 @@
       "overall_win_rate": 70.0
     },
     {
-      "ai_type": "Genetic AI",
-      "overall_win_rate": 66.66666666666666
-    },
-    {
       "ai_type": "EMM-2",
       "overall_win_rate": 65.0
+    },
+    {
+      "ai_type": "Genetic AI",
+      "overall_win_rate": 62.0
     },
     {
       "ai_type": "EMM-1",
@@ -49,5 +49,5 @@
       "overall_win_rate": 25.0
     }
   ],
-  "timestamp": 1752933471
+  "timestamp": 1752937810
 }

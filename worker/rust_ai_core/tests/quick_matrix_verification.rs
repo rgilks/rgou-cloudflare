@@ -1,7 +1,7 @@
 use rand::Rng;
 use rgou_ai_core::{
     genetic_ai::{GeneticAI, HeuristicParams},
-    GameState, HeuristicAI, Player, AI,
+    roll_tetrahedral_dice, GameState, HeuristicAI, Player, AI,
 };
 
 const QUICK_GAMES: usize = 50;
@@ -14,16 +14,13 @@ fn test_quick_matrix_verification() {
     println!("Games per matchup: {}", QUICK_GAMES);
     println!();
 
-
     println!("🔍 Test 1: EMM-2 vs Heuristic AI");
     test_emm2_vs_heuristic();
     println!();
 
-
     println!("🧬 Test 2: Genetic AI vs Heuristic AI");
     test_genetic_vs_heuristic();
     println!();
-
 
     println!("🎲 Test 3: Random vs Heuristic AI");
     test_random_vs_heuristic();
@@ -190,7 +187,7 @@ fn play_single_game(
         let current_player = state.current_player;
         let is_ai1_turn = (current_player == Player::Player1) == ai1_plays_first;
 
-        state.dice_roll = rand::thread_rng().gen_range(1..5);
+        state.dice_roll = roll_tetrahedral_dice();
 
         if state.dice_roll == 0 {
             state.current_player = state.current_player.opponent();
@@ -264,7 +261,7 @@ fn play_single_game_emm(
         let current_player = state.current_player;
         let is_ai1_turn = (current_player == Player::Player1) == ai1_plays_first;
 
-        state.dice_roll = rand::thread_rng().gen_range(1..5);
+        state.dice_roll = roll_tetrahedral_dice();
 
         if state.dice_roll == 0 {
             state.current_player = state.current_player.opponent();
@@ -334,7 +331,7 @@ fn play_single_game_random(ai2: &mut HeuristicAI, random_plays_first: bool) -> (
         let current_player = state.current_player;
         let is_random_turn = (current_player == Player::Player1) == random_plays_first;
 
-        state.dice_roll = rand::thread_rng().gen_range(1..5);
+        state.dice_roll = roll_tetrahedral_dice();
 
         if state.dice_roll == 0 {
             state.current_player = state.current_player.opponent();

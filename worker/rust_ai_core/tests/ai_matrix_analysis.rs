@@ -1,9 +1,9 @@
 use rand::Rng;
 use rgou_ai_core::genetic_ai::{GeneticAI, HeuristicParams};
 use rgou_ai_core::ml_ai::MLAI;
-use rgou_ai_core::{GameState, HeuristicAI, Player, AI, PIECES_PER_PLAYER};
+use rgou_ai_core::{GameState, HeuristicAI, Player, AI, PIECES_PER_PLAYER, roll_tetrahedral_dice};
 
-const GAMES_PER_MATCHUP: usize = 10;
+const GAMES_PER_MATCHUP: usize = 50; // Increased from 10 for better statistics
 
 #[derive(Debug, Clone)]
 struct MatrixResult {
@@ -185,6 +185,7 @@ fn play_game_ai_vs_ai(
     let mut ai1_total_time_ms = 0;
     let mut ai2_total_time_ms = 0;
 
+    // Create persistent AI instances to avoid recreation overhead
     let mut expectiminimax_ai1_depth1 = AI::new();
     let mut expectiminimax_ai1_depth2 = AI::new();
     let mut expectiminimax_ai1_depth3 = AI::new();
@@ -195,32 +196,36 @@ fn play_game_ai_vs_ai(
     let mut heuristic_ai2 = HeuristicAI::new();
     let mut ml_ai1 = MLAI::new();
     let mut ml_ai2 = MLAI::new();
+    let mut genetic_ai1 = GeneticAI::new(HeuristicParams::new());
+    let mut genetic_ai2 = GeneticAI::new(HeuristicParams::new());
 
+    // Use latest evolved parameters from the dominance test
     let evolved_params = HeuristicParams {
-        win_score: 11610,
-        finished_piece_value: 1228,
-        position_weight: 27,
-        rosette_safety_bonus: 18,
-        rosette_chain_bonus: 7,
+        win_score: 7273,
+        finished_piece_value: 876,
+        position_weight: 29,
         advancement_bonus: 11,
-        capture_bonus: 37,
-        vulnerability_penalty: 8,
-        center_control_bonus: 5,
-        piece_coordination_bonus: 3,
-        blocking_bonus: 18,
-        early_game_bonus: 5,
-        late_game_urgency: 12,
-        turn_order_bonus: 10,
+        rosette_safety_bonus: 13,
+        rosette_chain_bonus: 13,
+        capture_bonus: 38,
+        vulnerability_penalty: 15,
+        center_control_bonus: 19,
+        piece_coordination_bonus: 5,
+        blocking_bonus: 16,
+        early_game_bonus: 20,
+        late_game_urgency: 36,
+        turn_order_bonus: 9,
         mobility_bonus: 5,
-        attack_pressure_bonus: 9,
-        defensive_structure_bonus: 3,
+        attack_pressure_bonus: 10,
+        defensive_structure_bonus: 17,
     };
 
     loop {
         let current_player = game_state.current_player;
         let is_ai1_turn = (current_player == Player::Player1) == ai1_plays_first;
 
-        game_state.dice_roll = rand::thread_rng().gen_range(1..5);
+        // FIXED: Use correct tetrahedral dice roll with proper probability distribution
+        game_state.dice_roll = roll_tetrahedral_dice();
 
         if game_state.dice_roll == 0 {
             game_state.current_player = game_state.current_player.opponent();
@@ -236,7 +241,7 @@ fn play_game_ai_vs_ai(
                 &mut expectiminimax_ai1_depth3,
                 &mut heuristic_ai1,
                 &mut ml_ai1,
-                &mut GeneticAI::new(HeuristicParams::new()),
+                &mut genetic_ai1,
                 &game_state,
                 &evolved_params,
             )
@@ -248,7 +253,7 @@ fn play_game_ai_vs_ai(
                 &mut expectiminimax_ai2_depth3,
                 &mut heuristic_ai2,
                 &mut ml_ai2,
-                &mut GeneticAI::new(HeuristicParams::new()),
+                &mut genetic_ai2,
                 &game_state,
                 &evolved_params,
             )
@@ -318,7 +323,7 @@ fn get_ai_move(
     expectiminimax_ai_depth3: &mut AI,
     heuristic_ai: &mut HeuristicAI,
     ml_ai: &mut MLAI,
-    _genetic_ai: &mut GeneticAI,
+    genetic_ai: &mut GeneticAI,
     game_state: &GameState,
     evolved_params: &HeuristicParams,
 ) -> Option<u8> {
@@ -349,6 +354,7 @@ fn get_ai_move(
             response.r#move
         }
         AIType::Genetic => {
+            // FIXED: Create new instance with evolved parameters
             let mut genetic_ai = GeneticAI::new(evolved_params.clone());
             let (move_option, _) = genetic_ai.get_best_move(game_state);
             move_option
@@ -534,25 +540,4 @@ fn print_recommendations(ai_types: &[AIType], results: &[MatrixResult]) {
             best_win_rate
         );
     }
-
-    println!();
-    println!("📋 USE CASE RECOMMENDATIONS:");
-    println!("{}", "-".repeat(35));
-
-    println!("• Production Gameplay: Expectiminimax Depth 3");
-    println!("• Fast Casual Play: Expectiminimax Depth 2");
-    println!("• Maximum Strength: Expectiminimax Depth 3 (best balance)");
-    println!("• Educational: Heuristic AI (shows importance of depth search)");
-    println!("• Baseline Testing: Random AI");
-    println!("• Research: ML AI (for comparison and improvement)");
-
-    println!();
-    println!("💡 KEY INSIGHTS:");
-    println!("{}", "-".repeat(20));
-
-    println!("• Depth search is crucial for strong play");
-    println!("• Even Depth 1 significantly outperforms heuristic approach");
-    println!("• ML AI shows competitive performance");
-    println!("• Speed vs strength trade-off is significant");
-    println!("• Expectiminimax provides best overall performance");
 }

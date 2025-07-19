@@ -2,11 +2,11 @@ use super::{GameState, PiecePosition, Player, AI};
 use crate::{
     genetic_ai::{GeneticAI, HeuristicParams},
     ml_ai::MLAI,
-    MoveEvaluation,
+    roll_tetrahedral_dice, MoveEvaluation,
 };
 use js_sys;
 use lazy_static::lazy_static;
-use rand::Rng;
+
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
@@ -206,14 +206,12 @@ pub fn get_ml_ai_info() -> Result<JsValue, JsValue> {
 
 #[wasm_bindgen]
 pub fn roll_dice_ml() -> u8 {
-    let mut rng = rand::thread_rng();
-    (0..4).map(|_| rng.gen_range(0..=1)).sum()
+    roll_tetrahedral_dice()
 }
 
 #[wasm_bindgen]
 pub fn roll_dice_wasm() -> u8 {
-    let mut rng = rand::thread_rng();
-    (0..4).map(|_| rng.gen_range(0..=1)).sum()
+    roll_tetrahedral_dice()
 }
 
 #[wasm_bindgen]

@@ -1,7 +1,7 @@
 use rand::Rng;
 use rgou_ai_core::{
     genetic_ai::{GeneticAI, HeuristicParams},
-    GameState, HeuristicAI, Player, AI,
+    GameState, HeuristicAI, Player, AI, roll_tetrahedral_dice,
 };
 use std::time::Instant;
 
@@ -173,7 +173,7 @@ fn play_single_game(
         let current_player = state.current_player;
         let is_ai1_turn = (current_player == Player::Player1) == ai1_plays_first;
 
-        state.dice_roll = rand::thread_rng().gen_range(1..5);
+        state.dice_roll = roll_tetrahedral_dice();
 
         if state.dice_roll == 0 {
             state.current_player = state.current_player.opponent();
@@ -243,7 +243,7 @@ fn play_single_game_emm(
         let current_player = state.current_player;
         let is_ai1_turn = (current_player == Player::Player1) == ai1_plays_first;
 
-        state.dice_roll = rand::thread_rng().gen_range(1..5);
+        state.dice_roll = roll_tetrahedral_dice();
 
         if state.dice_roll == 0 {
             state.current_player = state.current_player.opponent();
@@ -309,7 +309,7 @@ fn play_single_game_random(ai2: &mut HeuristicAI, random_plays_first: bool) -> (
         let current_player = state.current_player;
         let is_random_turn = (current_player == Player::Player1) == random_plays_first;
 
-        state.dice_roll = rand::thread_rng().gen_range(1..5);
+        state.dice_roll = roll_tetrahedral_dice();
 
         if state.dice_roll == 0 {
             state.current_player = state.current_player.opponent();

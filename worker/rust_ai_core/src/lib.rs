@@ -1,3 +1,4 @@
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -17,6 +18,20 @@ pub const BOARD_SIZE: usize = 21;
 const ROSETTE_SQUARES: [u8; 5] = [0, 7, 13, 15, 16];
 const PLAYER1_TRACK: [u8; 14] = [3, 2, 1, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 const PLAYER2_TRACK: [u8; 14] = [19, 18, 17, 16, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15];
+
+/// Rolls 4 tetrahedral dice and returns the sum (0-4)
+/// This produces the correct probability distribution for the Royal Game of Ur:
+/// 0: 1/16 (6.25%), 1: 4/16 (25%), 2: 6/16 (37.5%), 3: 4/16 (25%), 4: 1/16 (6.25%)
+pub fn roll_tetrahedral_dice() -> u8 {
+    let mut rng = rand::thread_rng();
+    let mut count = 0;
+    for _ in 0..4 {
+        if rng.gen_bool(0.5) {
+            count += 1;
+        }
+    }
+    count
+}
 
 const WIN_SCORE: i32 = 16149;
 const FINISHED_PIECE_VALUE: i32 = 813;
