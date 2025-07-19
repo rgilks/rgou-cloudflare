@@ -1,6 +1,8 @@
-use rgou_ai_core::{GameState, HeuristicAI, Player, AI};
+use rgou_ai_core::{GameState, HeuristicAI, Player, AI, ml_ai::MLAI};
+use std::time::Instant;
 
 const QUICK_GAMES: usize = 5;
+const PERFORMANCE_LIMIT_MS: u128 = 10;
 
 #[test]
 fn test_quick_ai_functionality() {
@@ -13,6 +15,9 @@ fn test_quick_ai_functionality() {
     test_enhanced_evaluation_works();
     test_ai_can_make_moves();
     test_game_completion();
+    test_ml_ai_weight_loading();
+    test_ai_performance_limits();
+    test_wasm_integration_safety();
 
     println!("✅ Quick check complete!");
 }
@@ -108,9 +113,114 @@ fn test_game_completion() {
     println!("  ✅ Game progressed {} moves", moves);
 }
 
+fn test_ml_ai_weight_loading() {
+    println!("🔍 Test 5: ML AI Weight Loading & Persistence");
+
+    let mut ml_ai = MLAI::new();
+
+    let test_value_weights = vec![0.1; 1000];
+    let test_policy_weights = vec![0.2; 1000];
+    ml_ai.load_pretrained(&test_value_weights, &test_policy_weights);
+
+    let mut state = GameState::new();
+    state.dice_roll = 1;
+
+    let start = Instant::now();
+    let response = ml_ai.get_best_move(&state);
+    let duration = start.elapsed();
+
+    assert!(
+        response.r#move.is_some(),
+        "ML AI should find moves after weight loading"
+    );
+    assert!(
+        duration.as_millis() < PERFORMANCE_LIMIT_MS,
+        "ML AI should be fast: {}ms",
+        duration.as_millis()
+    );
+
+    println!(
+        "  ✅ ML AI loads weights and makes moves in {}ms",
+        duration.as_millis()
+    );
+}
+
+fn test_ai_performance_limits() {
+    println!("🔍 Test 6: AI Performance Benchmarks");
+
+    let mut ai = AI::new();
+    let mut state = GameState::new();
+    state.dice_roll = 1;
+
+    let mut total_time = 0u128;
+    let test_moves = 10;
+
+    for _ in 0..test_moves {
+        let start = Instant::now();
+        let (best_move, _) = ai.get_best_move(&state, 1);
+        let duration = start.elapsed();
+        total_time += duration.as_millis();
+
+        assert!(best_move.is_some(), "AI should find moves consistently");
+        assert!(
+            duration.as_millis() < PERFORMANCE_LIMIT_MS,
+            "AI move too slow: {}ms",
+            duration.as_millis()
+        );
+
+        if let Some(move_index) = best_move {
+            state.make_move(move_index).unwrap();
+        }
+    }
+
+    let avg_time = total_time / test_moves;
+    assert!(
+        avg_time < PERFORMANCE_LIMIT_MS,
+        "Average AI time too slow: {}ms",
+        avg_time
+    );
+
+    println!(
+        "  ✅ AI performance: {}ms average (limit: {}ms)",
+        avg_time, PERFORMANCE_LIMIT_MS
+    );
+}
+
+fn test_wasm_integration_safety() {
+    println!("🔍 Test 7: WASM Integration Safety");
+
+    let mut ai = AI::new();
+    let mut state = GameState::new();
+    state.dice_roll = 1;
+
+    let mut consecutive_moves = 0;
+    let max_consecutive = 20;
+
+    while consecutive_moves < max_consecutive && !state.is_game_over() {
+        let (best_move, _) = ai.get_best_move(&state, 1);
+
+        if let Some(move_index) = best_move {
+            let result = state.make_move(move_index);
+            assert!(result.is_ok(), "WASM AI should maintain state consistency");
+            consecutive_moves += 1;
+        } else {
+            state.current_player = state.current_player.opponent();
+        }
+    }
+
+    assert!(
+        consecutive_moves > 0,
+        "WASM AI should handle consecutive operations"
+    );
+    println!(
+        "  ✅ WASM AI handled {} consecutive moves safely",
+        consecutive_moves
+    );
+}
+
 #[test]
 fn test_quick_heuristic_vs_expectiminimax() {
-    println!("🔍 Test 5: Quick Heuristic vs Expectiminimax");
+    println!("🔍 Test 8: Quick Heuristic vs Expectiminimax");
 
     let mut heuristic_ai = HeuristicAI::new();
     let mut expectiminimax_ai = AI::new();
