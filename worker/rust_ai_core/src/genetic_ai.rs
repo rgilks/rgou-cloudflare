@@ -2,6 +2,7 @@ use crate::{GameState, Player, PIECES_PER_PLAYER};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::thread;
+use std::time::Instant;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HeuristicParams {
@@ -816,7 +817,10 @@ impl GeneticAlgorithm {
             population.push(GeneticIndividual::new(HeuristicParams::random()));
         }
 
+        let evolution_start = Instant::now();
+        
         for generation in 0..generations {
+            let generation_start = Instant::now();
             println!("Generation {}: Evaluating fitness...", generation);
             self.evaluate_population(&mut population);
 
@@ -828,10 +832,15 @@ impl GeneticAlgorithm {
             });
 
             let best_individual = &population[0];
+            let generation_time = generation_start.elapsed();
+            let total_time = evolution_start.elapsed();
+            
             println!(
-                "Best fitness: {:.4}, win rate: {:.2}%",
+                "Best fitness: {:.4}, win rate: {:.2}% (Gen: {:.1}s, Total: {:.1}s)",
                 best_individual.fitness,
-                best_individual.win_rate() * 100.0
+                best_individual.win_rate() * 100.0,
+                generation_time.as_secs_f64(),
+                total_time.as_secs_f64()
             );
 
             if generation < generations - 1 {
@@ -854,50 +863,82 @@ impl GeneticAlgorithm {
             let handle = thread::spawn(move || {
                 let mut wins = 0;
                 let mut games_played = 0;
+                let mut total_moves = 0;
+                let mut quick_wins = 0; // Wins in under 50 moves
 
                 for j in 0..population_clone.len() {
                     if i != j {
                         for _ in 0..games_per_individual {
-                            let result = Self::play_game(i, j, &population_clone);
+                            let (result, moves) = Self::play_game_detailed(i, j, &population_clone);
                             games_played += 1;
+                            total_moves += moves;
+
                             if result == i {
                                 wins += 1;
+                                if moves < 50 {
+                                    quick_wins += 1;
+                                }
                             }
                         }
                     }
                 }
 
-                (i, wins, games_played)
+                // Enhanced fitness calculation
+                let base_win_rate = if games_played > 0 {
+                    wins as f64 / games_played as f64
+                } else {
+                    0.0
+                };
+
+                // Bonus for quick wins (efficiency)
+                let quick_win_bonus = if wins > 0 {
+                    quick_wins as f64 / wins as f64 * 0.1
+                } else {
+                    0.0
+                };
+
+                // Bonus for consistency (low variance in move count)
+                let avg_moves = if games_played > 0 {
+                    total_moves as f64 / games_played as f64
+                } else {
+                    0.0
+                };
+                let consistency_bonus = if avg_moves > 0.0 {
+                    (100.0 / avg_moves) * 0.05 // Prefer games that end quickly
+                } else {
+                    0.0
+                };
+
+                let enhanced_fitness = base_win_rate + quick_win_bonus + consistency_bonus;
+
+                (i, wins, games_played, enhanced_fitness)
             });
 
             handles.push(handle);
         }
 
         for handle in handles {
-            if let Ok((i, wins, games_played)) = handle.join() {
+            if let Ok((i, wins, games_played, enhanced_fitness)) = handle.join() {
                 population[i].wins = wins;
                 population[i].games_played = games_played;
-                population[i].fitness = if games_played > 0 {
-                    wins as f64 / games_played as f64
-                } else {
-                    0.0
-                };
+                population[i].fitness = enhanced_fitness;
             }
         }
     }
 
-    fn play_game(
+    fn play_game_detailed(
         player1_idx: usize,
         player2_idx: usize,
         population: &Vec<GeneticIndividual>,
-    ) -> usize {
+    ) -> (usize, usize) {
         let player1_params = &population[player1_idx].params;
         let player2_params = &population[player2_idx].params;
 
         let mut state = GameState::new();
         let mut rng = thread_rng();
+        let mut moves_played = 0;
 
-        while !state.is_game_over() {
+        while !state.is_game_over() && moves_played < 200 {
             state.dice_roll = rng.gen_range(1..5);
             let valid_moves = state.get_valid_moves();
 
@@ -915,13 +956,15 @@ impl GeneticAlgorithm {
             let (best_move, _) = ai.get_best_move(&state);
 
             if let Some(move_idx) = best_move {
-                state.make_move(move_idx).unwrap();
+                if state.make_move(move_idx).is_ok() {
+                    moves_played += 1;
+                }
             } else {
                 state.current_player = state.current_player.opponent();
             }
         }
 
-        if state
+        let winner = if state
             .player1_pieces
             .iter()
             .filter(|p| p.square == 20)
@@ -931,7 +974,9 @@ impl GeneticAlgorithm {
             player1_idx
         } else {
             player2_idx
-        }
+        };
+
+        (winner, moves_played)
     }
 
     fn create_next_generation(&self, population: &[GeneticIndividual]) -> Vec<GeneticIndividual> {

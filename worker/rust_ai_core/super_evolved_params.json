@@ -1,0 +1,19 @@
+{
+  "win_score": 16149,
+  "finished_piece_value": 813,
+  "position_weight": 20,
+  "advancement_bonus": 13,
+  "rosette_safety_bonus": 28,
+  "rosette_chain_bonus": 13,
+  "capture_bonus": 43,
+  "vulnerability_penalty": 14,
+  "center_control_bonus": 20,
+  "piece_coordination_bonus": 3,
+  "blocking_bonus": 18,
+  "early_game_bonus": 14,
+  "late_game_urgency": 30,
+  "turn_order_bonus": 11,
+  "mobility_bonus": 6,
+  "attack_pressure_bonus": 9,
+  "defensive_structure_bonus": 7
+}
