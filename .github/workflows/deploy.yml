@@ -2,8 +2,9 @@ name: Deploy to Cloudflare
 
 on:
   push:
-    branches:
-      - main
+    # Run on all branches
+    # branches:
+    #   - main
 
 jobs:
   deploy:
@@ -67,6 +68,7 @@ jobs:
         run: npm run build:cf
         env:
           GITHUB_SHA: ${{ github.sha }}
+        if: github.ref == 'refs/heads/main'
 
       - name: Deploy Frontend
         uses: cloudflare/wrangler-action@v3
@@ -74,3 +76,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --config wrangler.toml --env=""
+        if: github.ref == 'refs/heads/main'
