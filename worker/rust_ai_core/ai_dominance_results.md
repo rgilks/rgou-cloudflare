@@ -1,39 +1,39 @@
 # AI DOMINANCE TEST RESULTS
 
-Test completed: 1752937810
+Test completed: 1752939576
 Games per matchup: 25
 
 ## FINAL RANKINGS
 
 1. **EMM-3**: 70.0%
 2. **EMM-2**: 65.0%
-3. **Genetic AI**: 62.0%
-4. **EMM-1**: 60.0%
-5. **Heuristic AI**: 55.0%
-6. **ML AI**: 50.0%
+3. **EMM-1**: 60.0%
+4. **Heuristic AI**: 55.0%
+5. **ML AI**: 50.0%
+6. **Genetic AI**: 28.7%
 7. **Random AI**: 25.0%
 
 ## BEST GENETIC PARAMETERS
 
 ```json
 {
-  "win_score": 7273,
-  "finished_piece_value": 876,
-  "position_weight": 29,
-  "advancement_bonus": 11,
-  "rosette_safety_bonus": 13,
-  "rosette_chain_bonus": 13,
-  "capture_bonus": 38,
-  "vulnerability_penalty": 15,
-  "center_control_bonus": 19,
-  "piece_coordination_bonus": 5,
-  "blocking_bonus": 16,
-  "early_game_bonus": 20,
-  "late_game_urgency": 36,
-  "turn_order_bonus": 9,
-  "mobility_bonus": 5,
-  "attack_pressure_bonus": 10,
-  "defensive_structure_bonus": 17
+  "win_score": 16662,
+  "finished_piece_value": 1096,
+  "position_weight": 20,
+  "advancement_bonus": 5,
+  "rosette_safety_bonus": 23,
+  "rosette_chain_bonus": 16,
+  "capture_bonus": 53,
+  "vulnerability_penalty": 34,
+  "center_control_bonus": 3,
+  "piece_coordination_bonus": 4,
+  "blocking_bonus": 11,
+  "early_game_bonus": 16,
+  "late_game_urgency": 28,
+  "turn_order_bonus": 7,
+  "mobility_bonus": 10,
+  "attack_pressure_bonus": 17,
+  "defensive_structure_bonus": 14
 }
 ```
 

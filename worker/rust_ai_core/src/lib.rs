@@ -33,23 +33,23 @@ pub fn roll_tetrahedral_dice() -> u8 {
     count
 }
 
-const WIN_SCORE: i32 = 16149;
-const FINISHED_PIECE_VALUE: i32 = 813;
-const POSITION_WEIGHT: i32 = 20;
-const SAFETY_BONUS: i32 = 28;
-const ROSETTE_CONTROL_BONUS: i32 = 28;
-const ADVANCEMENT_BONUS: i32 = 13;
-const CAPTURE_BONUS: i32 = 43;
-const CENTER_LANE_BONUS: i32 = 20;
-const VULNERABILITY_PENALTY: i32 = 14;
-const PIECE_COORDINATION_BONUS: i32 = 3;
-const BLOCKING_BONUS: i32 = 18;
-const EARLY_GAME_BONUS: i32 = 14;
-const LATE_GAME_URGENCY: i32 = 30;
-const TURN_ORDER_BONUS: i32 = 11;
-const MOBILITY_BONUS: i32 = 6;
-const ATTACK_PRESSURE_BONUS: i32 = 9;
-const DEFENSIVE_STRUCTURE_BONUS: i32 = 7;
+const WIN_SCORE: i32 = 7273;
+const FINISHED_PIECE_VALUE: i32 = 876;
+const POSITION_WEIGHT: i32 = 29;
+const SAFETY_BONUS: i32 = 13;
+const ROSETTE_CONTROL_BONUS: i32 = 13;
+const ADVANCEMENT_BONUS: i32 = 11;
+const CAPTURE_BONUS: i32 = 38;
+const CENTER_LANE_BONUS: i32 = 19;
+const VULNERABILITY_PENALTY: i32 = 15;
+const PIECE_COORDINATION_BONUS: i32 = 5;
+const BLOCKING_BONUS: i32 = 16;
+const EARLY_GAME_BONUS: i32 = 20;
+const LATE_GAME_URGENCY: i32 = 36;
+const TURN_ORDER_BONUS: i32 = 9;
+const MOBILITY_BONUS: i32 = 5;
+const ATTACK_PRESSURE_BONUS: i32 = 10;
+const DEFENSIVE_STRUCTURE_BONUS: i32 = 17;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Player {
@@ -623,7 +623,7 @@ impl AI {
             return (Some(valid_moves[0]), vec![]);
         }
 
-        // Handle depth 0 case (quiescence search only)
+    
         if depth == 0 {
             let mut move_evaluations = Vec::new();
             for &m in &valid_moves {
@@ -666,7 +666,7 @@ impl AI {
                 });
             }
 
-            // Sort by score (best first for maximizing, worst first for minimizing)
+    
             let is_maximizing = state.current_player == Player::Player2;
             move_evaluations.sort_by(|a, b| {
                 if is_maximizing {
@@ -1053,7 +1053,7 @@ impl HeuristicAI {
             }
         }
 
-        // Sort evaluations by score (best first for maximizing, worst first for minimizing)
+
         move_evaluations.sort_by(|a, b| {
             if is_maximizing {
                 b.score
@@ -1473,25 +1473,20 @@ mod tests {
     fn test_enhanced_evaluation_function() {
         let mut state = GameState::new();
 
-        // Test initial state evaluation
         let initial_score = state.evaluate();
-        assert!(initial_score.abs() < 1000); // Should be close to 0
+        assert!(initial_score.abs() < 1000);
 
-        // Test with some pieces on board
-        state.player1_pieces[0].square = 0; // Rosette position
-        state.player2_pieces[0].square = 4; // Center position
+        state.player1_pieces[0].square = 0;
+        state.player2_pieces[0].square = 4;
         let mid_game_score = state.evaluate();
 
-        // The enhanced evaluation should consider more factors
         assert!(mid_game_score != 0);
 
-        // Test vulnerability calculation
-        state.player1_pieces[1].square = 5; // Close to opponent piece
+        state.player1_pieces[1].square = 5;
         let vulnerable_score = state.evaluate();
         assert!(vulnerable_score != mid_game_score);
 
-        // Test piece coordination
-        state.player1_pieces[2].square = 6; // Close to other piece
+        state.player1_pieces[2].square = 6;
         let coordinated_score = state.evaluate();
         assert!(coordinated_score != vulnerable_score);
     }

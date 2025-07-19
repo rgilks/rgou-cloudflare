@@ -1,4 +1,4 @@
-use crate::{GameState, Player, PIECES_PER_PLAYER, roll_tetrahedral_dice};
+use crate::{roll_tetrahedral_dice, GameState, Player, PIECES_PER_PLAYER};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::thread;
@@ -81,9 +81,7 @@ impl HeuristicParams {
         let mut rng = thread_rng();
         let mut new_params = self.clone();
 
-
         if rng.gen_bool(mutation_rate) {
-
             new_params.win_score = (new_params.win_score as f64 * rng.gen_range(0.7..1.3)) as i32;
         }
         if rng.gen_bool(mutation_rate) {
@@ -150,7 +148,6 @@ impl HeuristicParams {
             new_params.defensive_structure_bonus =
                 (new_params.defensive_structure_bonus as f64 * rng.gen_range(0.8..1.2)) as i32;
         }
-
 
         new_params.win_score = new_params.win_score.max(1000).min(20000);
         new_params.finished_piece_value = new_params.finished_piece_value.max(100).min(3000);
@@ -430,7 +427,6 @@ impl GeneticAI {
         score += p2_strategic_score - p1_strategic_score;
         score += self.evaluate_board_control_with_params(state, params);
 
-
         score += self.evaluate_piece_coordination_with_params(state, params);
         score += self.evaluate_vulnerability_with_params(state, params);
         score += self.evaluate_blocking_with_params(state, params);
@@ -563,7 +559,6 @@ impl GeneticAI {
         }
     }
 
-
     fn calculate_piece_coordination(&self, state: &GameState, player: Player) -> i32 {
         let pieces = state.get_pieces(player);
         let mut coordination = 0;
@@ -593,7 +588,6 @@ impl GeneticAI {
         for piece in pieces {
             if piece.square >= 0 && piece.square < crate::BOARD_SIZE as i8 {
                 if !GameState::is_rosette(piece.square as u8) {
-        
                     let opponent = player.opponent();
                     let opponent_pieces = state.get_pieces(opponent);
                     for opp_piece in opponent_pieces {

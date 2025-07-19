@@ -44,13 +44,12 @@ impl Layer {
 
     pub fn forward(&self, input: &Array1<f32>) -> Array1<f32> {
         let linear = input.dot(&self.weights) + &self.biases;
-        linear.mapv(|x| x.max(0.0)) // ReLU activation
+        linear.mapv(|x| x.max(0.0))
     }
 
     pub fn load_weights(&mut self, weights: &[f32]) -> usize {
         let mut idx = 0;
 
-        // Load weights
         for i in 0..self.weights.shape()[0] {
             for j in 0..self.weights.shape()[1] {
                 if idx < weights.len() {
@@ -60,7 +59,6 @@ impl Layer {
             }
         }
 
-        // Load biases
         for i in 0..self.biases.len() {
             if idx < weights.len() {
                 self.biases[i] = weights[idx];
@@ -74,14 +72,12 @@ impl Layer {
     pub fn get_weights(&self) -> Vec<f32> {
         let mut weights = Vec::new();
 
-        // Add weights
         for i in 0..self.weights.shape()[0] {
             for j in 0..self.weights.shape()[1] {
                 weights.push(self.weights[[i, j]]);
             }
         }
 
-        // Add biases
         for &bias in self.biases.iter() {
             weights.push(bias);
         }
@@ -101,13 +97,11 @@ impl NeuralNetwork {
         let mut layers = Vec::new();
         let mut prev_size = config.input_size;
 
-        // Create hidden layers
         for &hidden_size in &config.hidden_sizes {
             layers.push(Layer::new(prev_size, hidden_size));
             prev_size = hidden_size;
         }
 
-        // Create output layer
         layers.push(Layer::new(prev_size, config.output_size));
 
         NeuralNetwork { layers, config }
@@ -120,11 +114,9 @@ impl NeuralNetwork {
             current = layer.forward(&current);
         }
 
-        // Apply tanh activation to output for value network
         if self.config.output_size == 1 {
             current.mapv(|x| x.tanh())
         } else {
-            // Apply softmax for policy network
             self.softmax(&current)
         }
     }
