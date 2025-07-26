@@ -5,6 +5,13 @@ use rand::Rng;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy)]
+enum SystemType {
+    AppleSilicon,
+    HighCoreCount,
+    Standard,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrainingSample {
     pub features: Vec<f32>,
@@ -117,29 +124,27 @@ impl Trainer {
         }
     }
 
+    /// Configure the global thread pool for optimal CPU utilization
+    ///
+    /// This function automatically detects the system type and configures
+    /// the rayon thread pool to use the optimal number of CPU cores:
+    ///
+    /// - **Apple Silicon**: Uses all performance cores (typically 8 on M1/M2/M3)
+    ///   while leaving efficiency cores for system tasks
+    /// - **High-core systems**: Uses most cores but leaves 1-2 for system tasks
+    /// - **Standard systems**: Uses all available cores
+    ///
+    /// This ensures maximum performance for CPU-intensive tasks like:
+    /// - Game generation for training data
+    /// - Neural network training
+    /// - AI evaluation and testing
     fn configure_thread_pool() {
         let total_cores = std::thread::available_parallelism()
             .unwrap_or(std::num::NonZeroUsize::new(1).unwrap())
             .get();
 
-        // Always use 8 performance cores on Apple Silicon for optimal performance
-        let num_cores = if total_cores >= 8 {
-            if total_cores == 10 {
-                println!(
-                    "🍎 Apple Silicon detected: Using 8 performance cores out of {} total cores",
-                    total_cores
-                );
-            } else {
-                println!(
-                    "🚀 High-core system detected: Using 8 cores out of {} total cores",
-                    total_cores
-                );
-            }
-            8
-        } else {
-            println!("Available CPU cores: {}", total_cores);
-            total_cores
-        };
+        // Determine optimal core count based on system characteristics
+        let num_cores = Self::get_optimal_core_count(total_cores);
 
         // Configure rayon thread pool for optimal performance
         rayon::ThreadPoolBuilder::new()
@@ -147,6 +152,103 @@ impl Trainer {
             .stack_size(8 * 1024 * 1024) // 8MB stack size for deep recursion
             .build_global()
             .unwrap_or_else(|_| println!("Warning: Could not set thread pool size"));
+    }
+
+    /// Determine the optimal number of CPU cores to use based on system characteristics
+    ///
+    /// This function analyzes the system type and total core count to determine
+    /// the optimal number of cores for parallel processing tasks.
+    fn get_optimal_core_count(total_cores: usize) -> usize {
+        // Detect system type and optimize accordingly
+        let system_info = Self::detect_system_type();
+
+        match system_info {
+            SystemType::AppleSilicon => {
+                // Apple Silicon: Use all performance cores (typically 8 on M1/M2/M3)
+                // Leave efficiency cores for system tasks
+                let performance_cores = if total_cores >= 10 {
+                    8 // M1 Pro/Max/M2/M3 with 8+4 or 10+2 configuration
+                } else if total_cores >= 8 {
+                    8 // M1 with 8+2 configuration
+                } else {
+                    total_cores // Fallback for other configurations
+                };
+
+                println!(
+                    "🍎 Apple Silicon detected: Using {} performance cores out of {} total cores",
+                    performance_cores, total_cores
+                );
+                performance_cores
+            }
+            SystemType::HighCoreCount => {
+                // High-core systems: Use most cores but leave some for system
+                let optimal_cores = if total_cores >= 16 {
+                    total_cores - 2 // Leave 2 cores for system
+                } else if total_cores >= 8 {
+                    total_cores - 1 // Leave 1 core for system
+                } else {
+                    total_cores // Use all cores on smaller systems
+                };
+
+                println!(
+                    "🚀 High-core system detected: Using {} cores out of {} total cores",
+                    optimal_cores, total_cores
+                );
+                optimal_cores
+            }
+            SystemType::Standard => {
+                // Standard systems: Use all cores
+                println!("💻 Standard system: Using all {} CPU cores", total_cores);
+                total_cores
+            }
+        }
+    }
+
+    /// Detect the system type to optimize CPU core utilization
+    ///
+    /// This function identifies the system architecture to determine
+    /// the optimal CPU core allocation strategy:
+    ///
+    /// - **Apple Silicon**: Detected by macOS + specific core counts (10, 12, 14)
+    /// - **High-core systems**: Systems with 16+ CPU cores
+    /// - **Standard systems**: All other configurations
+    fn detect_system_type() -> SystemType {
+        // Detect Apple Silicon
+        if cfg!(target_os = "macos") {
+            // Check for Apple Silicon characteristics
+            let total_cores = std::thread::available_parallelism()
+                .unwrap_or(std::num::NonZeroUsize::new(1).unwrap())
+                .get();
+
+            // Apple Silicon typically has 8+2, 8+4, or 10+2 core configurations
+            if total_cores == 10 || total_cores == 12 || total_cores == 14 {
+                return SystemType::AppleSilicon;
+            }
+        }
+
+        // Detect high-core count systems
+        let total_cores = std::thread::available_parallelism()
+            .unwrap_or(std::num::NonZeroUsize::new(1).unwrap())
+            .get();
+
+        if total_cores >= 16 {
+            SystemType::HighCoreCount
+        } else {
+            SystemType::Standard
+        }
+    }
+
+    /// Get the optimal number of CPU cores for parallel processing
+    ///
+    /// This is a public utility function that other parts of the codebase
+    /// can use to determine the optimal number of cores for their own
+    /// parallel processing tasks.
+    pub fn get_optimal_core_count_public() -> usize {
+        let total_cores = std::thread::available_parallelism()
+            .unwrap_or(std::num::NonZeroUsize::new(1).unwrap())
+            .get();
+
+        Self::get_optimal_core_count(total_cores)
     }
 
     pub fn generate_training_data(&self) -> Vec<TrainingSample> {
@@ -161,8 +263,8 @@ impl Trainer {
             .unwrap_or(std::num::NonZeroUsize::new(1).unwrap())
             .get();
 
-        // Use the same core count logic as configured in constructor
-        let num_cores = if total_cores >= 8 { 8 } else { total_cores };
+        // Use the same optimal core count logic as configured in constructor
+        let num_cores = Self::get_optimal_core_count(total_cores);
 
         let progress_interval = if self.config.num_games >= 1000 {
             50
