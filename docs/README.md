@@ -49,21 +49,24 @@ This directory contains comprehensive documentation for the Royal Game of Ur pro
 
 ### Classic AI Performance
 
-| AI Type                | Win Rate  | Search Depth | Speed   | Notes                      |
-| ---------------------- | --------- | ------------ | ------- | -------------------------- |
-| **Classic AI (EMM-4)** | **75.0%** | 4-ply        | 370ms   | **Maximum strength**       |
-| **Classic AI (EMM-3)** | **70.0%** | 3-ply        | 15ms    | **Optimal - Best balance** |
-| Classic AI (EMM-2)     | 98.0%     | 2-ply        | Instant | Strong alternative         |
+| AI Type                | Win Rate  | Search Depth | Speed   | Notes                        |
+| ---------------------- | --------- | ------------ | ------- | ---------------------------- |
+| **Classic AI (EMM-3)** | **75.6%** | 3-ply        | 15.6ms  | **Best overall performance** |
+| **Classic AI (EMM-2)** | **51.1%** | 2-ply        | Instant | Strong alternative           |
+| **Classic AI (EMM-1)** | **46.7%** | 1-ply        | Instant | Fast baseline                |
+| Heuristic AI           | **35.6%** | N/A          | Instant | Educational baseline         |
 
 ### ML AI Models Performance
 
-| Model          | Win Rate vs EMM-3 | Win Rate vs EMM-4 | Status                  |
-| -------------- | ----------------- | ----------------- | ----------------------- |
-| **PyTorch V5** | **49.0%**         | **44.0%**         | ✅ **Best Performance** |
-| **v2**         | 40.0%             | N/A               | ⚠️ Needs Improvement    |
-| **Fast**       | N/A               | N/A               | ⚠️ Not tested vs EMM    |
-| **v4**         | 20.0%             | N/A               | ❌ Needs Retraining     |
-| **Hybrid**     | 30.0%             | N/A               | ❌ Needs Retraining     |
+| Model             | Win Rate  | Speed  | Status                     |
+| ----------------- | --------- | ------ | -------------------------- |
+| **ML-Hybrid**     | **60.0%** | 52.1ms | ✅ **Best ML Performance** |
+| **ML-PyTorch-V5** | **60.0%** | 54.8ms | ✅ **Best ML Performance** |
+| **ML-V4**         | **58.9%** | 50.7ms | ✅ **Strong Performance**  |
+| **ML-V2**         | **55.6%** | 53.5ms | ✅ **Good Performance**    |
+| **ML-Fast**       | **51.1%** | 58.4ms | ⚠️ **Needs Improvement**   |
+
+**Note:** All Classic AI variants now use evolved genetic parameters that provide a 61% win rate improvement over the original default parameters.
 
 ## 🚀 Latest Training Options
 
