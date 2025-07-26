@@ -99,6 +99,20 @@ npm run train:rust
 npm run train:rust:production
 ```
 
+## 🧬 Genetic Parameter Evolution
+
+You can evolve and validate the genetic parameters for the classic AI using the following scripts:
+
+```bash
+# Evolve new genetic parameters (runs Rust evolution, saves to ml/data/genetic_params/evolved.json)
+npm run evolve:genetic-params
+
+# Validate evolved parameters against default (runs 100 games, prints win rates)
+npm run validate:genetic-params
+```
+
+The evolution script uses all available CPU cores and saves the best parameters. The validation script compares evolved vs default parameters and prints a performance summary.
+
 ## 🔄 Recent Updates
 
 - **July 2025**: PyTorch V5 model achieves 49% win rate against expectiminimax AI

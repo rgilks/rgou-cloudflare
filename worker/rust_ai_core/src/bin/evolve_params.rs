@@ -6,9 +6,9 @@ use rgou_ai_core::Player;
 use rgou_ai_core::{genetic_params::GeneticParams, GameState, AI};
 use std::fs;
 
-const POPULATION_SIZE: usize = 12;
-const GENERATIONS: usize = 8;
-const GAMES_PER_EVAL: usize = 20;
+const POPULATION_SIZE: usize = 50;
+const GENERATIONS: usize = 50;
+const GAMES_PER_EVAL: usize = 100;
 const MUTATION_RATE: f64 = 0.3;
 const MUTATION_STRENGTH: f64 = 1.0;
 const CROSSOVER_RATE: f64 = 0.5;
@@ -120,6 +120,66 @@ fn evaluate_params_tournament(evolved_params: &GeneticParams) -> f64 {
     wins as f64 / GAMES_PER_EVAL as f64
 }
 
+fn validate_against_default(evolved_params: &GeneticParams, num_games: usize) -> f64 {
+    let default_params = GeneticParams::default();
+    let results: Vec<bool> = (0..num_games)
+        .into_par_iter()
+        .map(|_| {
+            let mut game_state = GameState::new();
+            let mut moves_played = 0;
+            let max_moves = 200;
+            while !game_state.is_game_over() && moves_played < max_moves {
+                let current_player = game_state.current_player;
+                let is_evolved_turn = current_player == Player::Player2;
+                game_state.dice_roll = rgou_ai_core::dice::roll_dice();
+                if game_state.dice_roll == 0 {
+                    game_state.current_player = game_state.current_player.opponent();
+                    continue;
+                }
+                let test_params = if is_evolved_turn {
+                    evolved_params.clone()
+                } else {
+                    default_params.clone()
+                };
+                let mut test_state = GameState::with_genetic_params(test_params);
+                test_state.board = game_state.board.clone();
+                test_state.player1_pieces = game_state.player1_pieces.clone();
+                test_state.player2_pieces = game_state.player2_pieces.clone();
+                test_state.current_player = game_state.current_player;
+                test_state.dice_roll = game_state.dice_roll;
+                let mut ai = AI::new();
+                let (best_move, _) = ai.get_best_move(&test_state, 3);
+                if let Some(move_piece) = best_move {
+                    game_state.make_move(move_piece).ok();
+                } else {
+                    game_state.current_player = game_state.current_player.opponent();
+                }
+                moves_played += 1;
+            }
+            let p1_finished = game_state
+                .player1_pieces
+                .iter()
+                .filter(|p| p.square == 20)
+                .count();
+            let p2_finished = game_state
+                .player2_pieces
+                .iter()
+                .filter(|p| p.square == 20)
+                .count();
+            if p2_finished >= 7 {
+                true
+            } else if p1_finished >= 7 {
+                false
+            } else {
+                let evolved_eval = game_state.evaluate();
+                evolved_eval > 0
+            }
+        })
+        .collect();
+    let wins = results.iter().filter(|&&won| won).count();
+    wins as f64 / num_games as f64
+}
+
 fn main() {
     println!("\n=== Genetic Parameter Evolution for EMM AI (Tournament Style) ===");
     println!("🚀 Optimizing CPU usage for maximum performance...");
@@ -186,12 +246,24 @@ fn main() {
     println!("🏆 Best win rate vs defaults: {:.2}", best_score);
     println!("🔧 Best parameters: {:#?}", best_params);
 
-    // Save to file
-    let out_path = "../../ml/data/genetic_params/evolved.json";
-    fs::write(
-        out_path,
-        serde_json::to_string_pretty(&best_params).unwrap(),
-    )
-    .unwrap();
-    println!("💾 Saved best parameters to {}", out_path);
+    // Post-evolution validation
+    println!("\n🔬 Validating best evolved parameters against default with 1000 games...");
+    let validation_games = 1000;
+    let win_rate = validate_against_default(&best_params, validation_games);
+    println!(
+        "Evolved win rate over {} games: {:.2}%",
+        validation_games,
+        win_rate * 100.0
+    );
+    if win_rate > 0.55 {
+        let out_path = "../../ml/data/genetic_params/evolved.json";
+        fs::write(
+            out_path,
+            serde_json::to_string_pretty(&best_params).unwrap(),
+        )
+        .unwrap();
+        println!("💾 Saved best parameters to {}", out_path);
+    } else {
+        println!("⚠️  Evolved parameters did not outperform default by a significant margin. Not saving.");
+    }
 }
