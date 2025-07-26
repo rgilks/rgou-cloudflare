@@ -1,3 +1,71 @@
+//! # ML Training Module
+//!
+//! This module provides comprehensive machine learning training capabilities for the Royal Game of Ur AI.
+//! It includes intelligent CPU optimization, unified configuration management, and efficient training pipelines.
+//!
+//! ## Key Features
+//!
+//! ### 🍎 Intelligent CPU Optimization
+//! - **Apple Silicon Detection**: Automatically detects M1/M2/M3 Macs and optimizes for performance cores
+//! - **Cross-Platform Compatibility**: Adapts to any CPU configuration without hardcoded values
+//! - **System Responsiveness**: Leaves appropriate cores for system tasks
+//!
+//! ### 🚀 Performance Optimizations
+//! - **Parallel Game Generation**: Uses all available cores for training data generation
+//! - **Optimized Thread Pool**: Configures rayon thread pool for maximum efficiency
+//! - **Memory Management**: 8MB stack size for deep recursion operations
+//!
+//! ### 📊 Unified Configuration
+//! - **Single Source of Truth**: All training parameters in `ml/config/training.json`
+//! - **Network Architecture**: Centralized neural network configuration
+//! - **Training Presets**: Quick, default, and production settings
+//!
+//! ## Usage Examples
+//!
+//! ```rust
+//! // Create trainer with optimal CPU configuration
+//! let config = TrainingConfig {
+//!     num_games: 1000,
+//!     epochs: 50,
+//!     batch_size: 32,
+//!     learning_rate: 0.001,
+//!     validation_split: 0.2,
+//!     depth: 3,
+//!     seed: 42,
+//!     output_file: "ml_ai_weights.json".to_string(),
+//! };
+//!
+//! let mut trainer = Trainer::new(config);
+//!
+//! // Generate training data using all CPU cores
+//! let training_data = trainer.generate_training_data();
+//!
+//! // Train neural networks
+//! let metadata = trainer.train(&training_data);
+//!
+//! // Save trained weights
+//! trainer.save_weights("weights.json", &metadata)?;
+//! ```
+//!
+//! ## CPU Optimization Strategy
+//!
+//! The module automatically detects system characteristics and optimizes CPU utilization:
+//!
+//! | System Type | Core Allocation | Description |
+//! |-------------|-----------------|-------------|
+//! | Apple Silicon | 8 performance cores | M1/M2/M3 Macs: Uses all performance cores, leaves efficiency cores for system |
+//! | High-Core (16+) | total - 2 cores | High-end systems: Leaves 2 cores for system tasks |
+//! | High-Core (8-15) | total - 1 core | Mid-range systems: Leaves 1 core for system tasks |
+//! | Standard | all cores | Smaller systems: Uses all available cores |
+//!
+//! ## Performance Monitoring
+//!
+//! The training process provides detailed progress information:
+//! - Real-time game generation progress with ETA
+//! - Per-epoch training metrics and trends
+//! - Validation loss tracking with early stopping
+//! - Comprehensive training metadata and statistics
+
 use crate::features::GameFeatures;
 use crate::neural_network::{NetworkConfig, NeuralNetwork};
 use crate::{GameState, AI, PIECES_PER_PLAYER};
@@ -5,70 +73,305 @@ use rand::Rng;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
+/// System types for CPU optimization strategies
 #[derive(Debug, Clone, Copy)]
 enum SystemType {
+    /// Apple Silicon systems (M1/M2/M3) with performance/efficiency core architecture
     AppleSilicon,
+    /// High-core count systems (16+ cores) that benefit from leaving cores for system tasks
     HighCoreCount,
+    /// Standard systems that can use all available cores
     Standard,
 }
 
+/// A single training sample containing game state features and target values
+///
+/// This structure represents one training example used to train the neural networks.
+/// Each sample contains the game state features and the expected outputs for
+/// both the value network (game state evaluation) and policy network (move selection).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrainingSample {
+    /// Game state features (150-dimensional vector)
+    ///
+    /// These features encode the current game state including:
+    /// - Piece positions for both players
+    /// - Dice roll information
+    /// - Game phase indicators
+    /// - Strategic position metrics
     pub features: Vec<f32>,
+
+    /// Target value for the value network (game state evaluation)
+    ///
+    /// This is a scalar value between -1 and 1 representing:
+    /// - 1.0: Current player has a winning position
+    /// - 0.0: Neutral/balanced position
+    /// - -1.0: Current player has a losing position
     pub value_target: f32,
+
+    /// Target probabilities for the policy network (move selection)
+    ///
+    /// This is a 7-dimensional vector representing the probability
+    /// distribution over all possible moves (0-6). The expert move
+    /// (determined by expectiminimax search) gets probability 1.0,
+    /// while all other moves get 0.0.
     pub policy_target: Vec<f32>,
 }
 
+/// Configuration parameters for ML training
+///
+/// This structure contains all the hyperparameters and settings needed
+/// to configure the training process. It can be loaded from the unified
+/// configuration file or created programmatically.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrainingConfig {
+    /// Number of games to generate for training data
+    ///
+    /// More games provide more diverse training data but increase training time.
+    /// Typical values: 100 (quick test), 1000 (default), 2000+ (production)
     pub num_games: usize,
+
+    /// Number of training epochs
+    ///
+    /// Each epoch processes all training data once. More epochs allow
+    /// the model to learn more complex patterns but risk overfitting.
+    /// Typical values: 10 (quick test), 50 (default), 100+ (production)
     pub epochs: usize,
+
+    /// Batch size for training
+    ///
+    /// Larger batches provide more stable gradients but require more memory.
+    /// Smaller batches allow more frequent updates but may be less stable.
+    /// Typical values: 32 (default), 64 (production), 128 (high memory)
     pub batch_size: usize,
+
+    /// Learning rate for gradient descent
+    ///
+    /// Controls how much the model weights are updated in each step.
+    /// Too high: training may diverge. Too low: training may be slow.
+    /// Typical values: 0.001 (default), 0.0001 (fine-tuning)
     pub learning_rate: f32,
+
+    /// Fraction of data to use for validation
+    ///
+    /// Validation data is used to monitor training progress and prevent overfitting.
+    /// Typical values: 0.2 (20% validation, 80% training)
     pub validation_split: f32,
+
+    /// Search depth for expectiminimax algorithm
+    ///
+    /// Higher depth provides better expert moves but increases computation time.
+    /// This affects the quality of the training targets.
+    /// Typical values: 3 (default), 4 (production), 5+ (high quality)
     pub depth: u8,
+
+    /// Random seed for reproducible results
+    ///
+    /// Using the same seed ensures reproducible training runs.
+    /// Set to 0 for truly random behavior.
     pub seed: u64,
+
+    /// Output file path for trained weights
+    ///
+    /// The trained neural network weights will be saved to this file
+    /// in JSON format with metadata.
     pub output_file: String,
 }
 
+/// Neural network architecture configuration
+///
+/// This structure defines the architecture of both the value network
+/// and policy network. Both networks share the same input and hidden
+/// layers but have different output layers.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkArchitecture {
+    /// Size of the input feature vector
+    ///
+    /// This should match the number of features extracted from the game state.
+    /// Currently fixed at 150 features for the Royal Game of Ur.
     pub input_size: usize,
+
+    /// Sizes of hidden layers
+    ///
+    /// Each element represents the number of neurons in a hidden layer.
+    /// The layers are processed in order from input to output.
+    /// Typical architecture: [256, 128, 64, 32] for a 4-layer network
     pub hidden_sizes: Vec<usize>,
+
+    /// Size of the value network output
+    ///
+    /// The value network outputs a single scalar value representing
+    /// the evaluation of the current game state.
     pub value_output_size: usize,
+
+    /// Size of the policy network output
+    ///
+    /// The policy network outputs a probability distribution over
+    /// all possible moves (0-6 for the Royal Game of Ur).
     pub policy_output_size: usize,
 }
 
+/// Unified training configuration containing all training parameters
+///
+/// This structure represents the complete configuration loaded from
+/// `ml/config/training.json`. It contains network architecture and
+/// multiple training presets for different use cases.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UnifiedTrainingConfig {
+    /// Neural network architecture definition
+    ///
+    /// Defines the structure of both value and policy networks.
+    /// This is shared across all training configurations.
     pub network_architecture: NetworkArchitecture,
+
+    /// Default training parameters
+    ///
+    /// Standard training configuration for normal development and testing.
+    /// Balanced between training time and model quality.
     pub training_defaults: TrainingConfig,
+
+    /// Production training parameters
+    ///
+    /// High-quality training configuration for production models.
+    /// Uses more games, more epochs, and higher search depth for best results.
     pub production_settings: TrainingConfig,
+
+    /// Quick test training parameters
+    ///
+    /// Fast training configuration for rapid testing and development.
+    /// Uses fewer games and epochs for quick feedback.
     pub quick_test_settings: TrainingConfig,
 }
 
+/// Metadata about a completed training run
+///
+/// This structure contains comprehensive information about a training session,
+/// including configuration parameters, performance metrics, and training results.
+/// It is saved alongside the trained weights for reproducibility and analysis.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrainingMetadata {
+    /// Date and time when training completed
+    ///
+    /// ISO 8601 formatted timestamp for when the training run finished.
     pub training_date: String,
+
+    /// Version identifier for the training run
+    ///
+    /// Can be used to track different training experiments or model versions.
     pub version: String,
+
+    /// Number of games used for training data generation
+    ///
+    /// This matches the `num_games` parameter from the training configuration.
     pub num_games: usize,
+
+    /// Total number of training samples generated
+    ///
+    /// This is typically much larger than `num_games` since each game
+    /// produces multiple training samples (one per move).
     pub num_training_samples: usize,
+
+    /// Number of training epochs completed
+    ///
+    /// May be less than the configured epochs if early stopping was triggered.
     pub epochs: usize,
+
+    /// Learning rate used during training
+    ///
+    /// This affects how much the model weights were updated in each step.
     pub learning_rate: f32,
+
+    /// Batch size used during training
+    ///
+    /// Larger batches provide more stable gradients but require more memory.
     pub batch_size: usize,
+
+    /// Validation split ratio used
+    ///
+    /// Fraction of data reserved for validation (e.g., 0.2 for 20% validation).
     pub validation_split: f32,
+
+    /// Random seed used for reproducibility
+    ///
+    /// Using the same seed should produce identical results.
     pub seed: u64,
+
+    /// Total training time in seconds
+    ///
+    /// Includes both data generation and neural network training time.
     pub training_time_seconds: f64,
+
+    /// List of improvements or notes about this training run
+    ///
+    /// Can include information about hyperparameter changes, architecture
+    /// modifications, or other experimental details.
     pub improvements: Vec<String>,
 }
 
+/// Main trainer for machine learning models
+///
+/// This struct manages the complete training pipeline including:
+/// - CPU optimization and thread pool configuration
+/// - Training data generation using parallel game simulation
+/// - Neural network training with value and policy networks
+/// - Model saving and loading with metadata
+///
+/// The trainer automatically optimizes CPU utilization based on the system
+/// architecture and provides comprehensive progress monitoring.
 pub struct Trainer {
+    /// Value network for game state evaluation
+    ///
+    /// This network learns to evaluate how good a game position is
+    /// for the current player. Outputs a scalar value between -1 and 1.
     value_network: NeuralNetwork,
+
+    /// Policy network for move selection
+    ///
+    /// This network learns to predict the best move in a given position.
+    /// Outputs a probability distribution over all possible moves.
     policy_network: NeuralNetwork,
+
+    /// Training configuration parameters
+    ///
+    /// Contains all hyperparameters and settings for the training process.
     config: TrainingConfig,
 }
 
 impl Trainer {
+    /// Create a new trainer with optimal CPU configuration
+    ///
+    /// This constructor:
+    /// 1. Configures the global thread pool for optimal CPU utilization
+    /// 2. Loads the unified network configuration from `ml/config/training.json`
+    /// 3. Initializes both value and policy networks
+    /// 4. Sets up the training configuration
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Training configuration containing all hyperparameters
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let config = TrainingConfig {
+    ///     num_games: 1000,
+    ///     epochs: 50,
+    ///     batch_size: 32,
+    ///     learning_rate: 0.001,
+    ///     validation_split: 0.2,
+    ///     depth: 3,
+    ///     seed: 42,
+    ///     output_file: "ml_ai_weights.json".to_string(),
+    /// };
+    ///
+    /// let trainer = Trainer::new(config);
+    /// ```
+    ///
+    /// # CPU Optimization
+    ///
+    /// The trainer automatically detects your system type and optimizes CPU utilization:
+    /// - **Apple Silicon**: Uses all 8 performance cores, leaves efficiency cores for system
+    /// - **High-core systems**: Uses most cores but leaves 1-2 for system tasks
+    /// - **Standard systems**: Uses all available cores
     pub fn new(config: TrainingConfig) -> Self {
         // Configure optimal thread pool for training
         Self::configure_thread_pool();
@@ -103,6 +406,30 @@ impl Trainer {
         }
     }
 
+    /// Load network architecture from unified configuration file
+    ///
+    /// Attempts to load the network architecture from `ml/config/training.json`.
+    /// If the file doesn't exist or can't be parsed, returns `None` and the
+    /// trainer will use hardcoded default values.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(NetworkArchitecture)` - Successfully loaded configuration
+    /// * `None` - File not found or parsing failed, will use defaults
+    ///
+    /// # File Format
+    ///
+    /// The configuration file should contain a JSON object with this structure:
+    /// ```json
+    /// {
+    ///   "network_architecture": {
+    ///     "input_size": 150,
+    ///     "hidden_sizes": [256, 128, 64, 32],
+    ///     "value_output_size": 1,
+    ///     "policy_output_size": 7
+    ///   }
+    /// }
+    /// ```
     fn load_network_config() -> Option<NetworkArchitecture> {
         let config_path = std::path::Path::new("ml/config/training.json");
         if config_path.exists() {
@@ -251,6 +578,47 @@ impl Trainer {
         Self::get_optimal_core_count(total_cores)
     }
 
+    /// Generate training data using parallel game simulation
+    ///
+    /// This method generates training data by simulating multiple games in parallel
+    /// using all available CPU cores. Each game produces multiple training samples
+    /// (one for each move), so the total number of samples is much larger than
+    /// the number of games.
+    ///
+    /// # Process
+    ///
+    /// 1. **Parallel Game Generation**: Uses rayon to simulate games concurrently
+    /// 2. **Expert Move Calculation**: Uses expectiminimax search to determine optimal moves
+    /// 3. **Feature Extraction**: Extracts 150-dimensional feature vectors from each position
+    /// 4. **Target Generation**: Creates value and policy targets for each position
+    ///
+    /// # Performance
+    ///
+    /// - **CPU Utilization**: Uses all available performance cores
+    /// - **Progress Monitoring**: Shows real-time progress with ETA
+    /// - **Memory Efficiency**: Processes games in parallel without excessive memory usage
+    ///
+    /// # Returns
+    ///
+    /// A vector of training samples, where each sample contains:
+    /// - Game state features (150-dimensional vector)
+    /// - Value target (scalar between -1 and 1)
+    /// - Policy target (7-dimensional probability vector)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let training_data = trainer.generate_training_data();
+    /// println!("Generated {} training samples", training_data.len());
+    /// ```
+    ///
+    /// # Progress Output
+    ///
+    /// The method provides detailed progress information:
+    /// ```
+    /// 🎮 Core 1: 25.0% - 12.5 games/sec - ETA: 6s - Samples: 3750
+    /// 🎮 Core 2: 50.0% - 12.3 games/sec - ETA: 4s - Samples: 7500
+    /// ```
     pub fn generate_training_data(&self) -> Vec<TrainingSample> {
         println!("=== Rust Data Generation ===");
         println!(
@@ -416,6 +784,61 @@ impl Trainer {
         policy
     }
 
+    /// Train the neural networks on generated training data
+    ///
+    /// This method trains both the value network and policy network using the
+    /// provided training data. The training process includes validation,
+    /// early stopping, and comprehensive progress monitoring.
+    ///
+    /// # Training Process
+    ///
+    /// 1. **Data Split**: Splits data into training and validation sets
+    /// 2. **Epoch Training**: Trains for the specified number of epochs
+    /// 3. **Validation**: Monitors validation loss to prevent overfitting
+    /// 4. **Early Stopping**: Stops training if validation loss doesn't improve
+    /// 5. **Progress Monitoring**: Shows detailed training metrics and trends
+    ///
+    /// # Training Metrics
+    ///
+    /// The method tracks and reports:
+    /// - Training loss per epoch
+    /// - Validation loss per epoch
+    /// - Loss improvement trends
+    /// - Training time and ETA
+    /// - Best validation loss achieved
+    ///
+    /// # Early Stopping
+    ///
+    /// Training stops early if validation loss doesn't improve for 20 epochs.
+    /// This prevents overfitting and saves training time.
+    ///
+    /// # Arguments
+    ///
+    /// * `training_data` - Vector of training samples generated by `generate_training_data()`
+    ///
+    /// # Returns
+    ///
+    /// `TrainingMetadata` containing comprehensive information about the training run:
+    /// - Configuration parameters used
+    /// - Performance metrics
+    /// - Training time and statistics
+    /// - Version and reproducibility information
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let training_data = trainer.generate_training_data();
+    /// let metadata = trainer.train(&training_data);
+    /// println!("Training completed in {:.2} seconds", metadata.training_time_seconds);
+    /// ```
+    ///
+    /// # Progress Output
+    ///
+    /// The method provides detailed training progress:
+    /// ```
+    /// ⏱️  Epoch 1/50 (45s) | Train: 0.2345 | Val: 0.2123 | Δ: -0.0222 | ETA: 37.5m
+    ///    📊 Trends: Train 📉 | Val 📉 | Best Val: 0.2123
+    /// ```
     pub fn train(&mut self, training_data: &[TrainingSample]) -> TrainingMetadata {
         println!(
             "🚀 Starting training with {} samples...",
@@ -641,6 +1064,65 @@ impl Trainer {
         loss
     }
 
+    /// Save trained neural network weights to a JSON file
+    /// 
+    /// This method saves both the value network and policy network weights
+    /// along with comprehensive metadata about the training run. The saved
+    /// file can be loaded later to restore the trained model.
+    /// 
+    /// # File Format
+    /// 
+    /// The weights are saved in JSON format with the following structure:
+    /// ```json
+    /// {
+    ///   "value_weights": [...],
+    ///   "policy_weights": [...],
+    ///   "network_config": {
+    ///     "input_size": 150,
+    ///     "hidden_sizes": [256, 128, 64, 32],
+    ///     "value_output_size": 1,
+    ///     "policy_output_size": 7
+    ///   },
+    ///   "metadata": {
+    ///     "training_date": "2024-01-01T12:00:00Z",
+    ///     "version": "v1.0",
+    ///     "num_games": 1000,
+    ///     "num_training_samples": 15000,
+    ///     "epochs": 50,
+    ///     "learning_rate": 0.001,
+    ///     "batch_size": 32,
+    ///     "validation_split": 0.2,
+    ///     "seed": 42,
+    ///     "training_time_seconds": 3600.0,
+    ///     "improvements": ["Improved feature extraction", "Added early stopping"]
+    ///   }
+    /// }
+    /// ```
+    /// 
+    /// # Arguments
+    /// 
+    /// * `filename` - Path to the output JSON file
+    /// * `metadata` - Training metadata containing configuration and performance information
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - Weights successfully saved
+    /// * `Err(...)` - Error occurred during saving (e.g., file permission, disk space)
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// let metadata = trainer.train(&training_data);
+    /// trainer.save_weights("ml_ai_weights.json", &metadata)?;
+    /// ```
+    /// 
+    /// # Error Handling
+    /// 
+    /// Common errors include:
+    /// - File permission issues
+    /// - Insufficient disk space
+    /// - Invalid file path
+    /// - JSON serialization errors
     pub fn save_weights(
         &self,
         filename: &str,
@@ -660,6 +1142,57 @@ impl Trainer {
         Ok(())
     }
 
+    /// Load neural network weights from a JSON file
+    /// 
+    /// This method loads previously saved weights for both the value network
+    /// and policy network. The weights file must contain the same network
+    /// architecture as the current trainer configuration.
+    /// 
+    /// # File Format
+    /// 
+    /// The method expects a JSON file with the same structure as produced by `save_weights()`:
+    /// ```json
+    /// {
+    ///   "value_weights": [...],
+    ///   "policy_weights": [...],
+    ///   "network_config": {
+    ///     "input_size": 150,
+    ///     "hidden_sizes": [256, 128, 64, 32],
+    ///     "value_output_size": 1,
+    ///     "policy_output_size": 7
+    ///   },
+    ///   "metadata": { ... }
+    /// }
+    /// ```
+    /// 
+    /// # Arguments
+    /// 
+    /// * `filename` - Path to the JSON file containing saved weights
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - Weights successfully loaded
+    /// * `Err(...)` - Error occurred during loading
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// let mut trainer = Trainer::new(config);
+    /// trainer.load_weights("ml_ai_weights.json")?;
+    /// ```
+    /// 
+    /// # Error Handling
+    /// 
+    /// Common errors include:
+    /// - File not found
+    /// - Invalid JSON format
+    /// - Network architecture mismatch
+    /// - Corrupted weight data
+    /// 
+    /// # Compatibility
+    /// 
+    /// The loaded weights must match the current network architecture.
+    /// If the architecture has changed, the weights cannot be loaded.
     pub fn load_weights(&mut self, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(filename)?;
         let weights_data: serde_json::Value = serde_json::from_str(&content)?;

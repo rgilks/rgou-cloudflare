@@ -2,6 +2,20 @@
 
 This directory contains all machine learning related components for the Royal Game of Ur AI system.
 
+## 🚀 Performance Optimizations
+
+### 🍎 Intelligent CPU Optimization
+The ML system automatically detects your system architecture and optimizes CPU utilization:
+
+- **Apple Silicon (M1/M2/M3)**: Uses all 8 performance cores, leaves efficiency cores for system tasks
+- **High-core systems (16+)**: Uses most cores but leaves 2 for system responsiveness  
+- **Standard systems**: Uses all available cores for maximum performance
+
+### 🔥 GPU Acceleration
+- **PyTorch training**: **REQUIRES** GPU acceleration (CUDA or Apple Metal)
+- **Rust training**: Uses optimized CPU parallelization
+- **Auto-detection**: Automatically selects the best backend for your system
+
 ## Structure
 
 ```
@@ -62,9 +76,16 @@ npm run train:pytorch
 
 ### Backend Selection
 
-- **auto**: Automatically selects PyTorch (if available) or Rust
-- **pytorch**: Uses PyTorch with GPU acceleration when available
-- **rust**: Uses pure Rust implementation
+- **auto**: Automatically selects PyTorch (if GPU available) or Rust
+- **pytorch**: Uses PyTorch with **required** GPU acceleration (CUDA/MPS)
+- **rust**: Uses pure Rust implementation with optimized CPU parallelization
+
+### Performance Characteristics
+
+| Backend | CPU Usage | GPU Usage | Best For |
+|---------|-----------|-----------|----------|
+| PyTorch | 1 core + GPU | **Required** | High-performance training with GPU |
+| Rust | All performance cores | None | CPU-optimized training, no GPU required |
 
 ## Weight Management
 
