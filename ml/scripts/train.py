@@ -184,10 +184,16 @@ class UnifiedTrainer:
             return False
     
     def check_pytorch_available(self) -> bool:
-        """Check if PyTorch is available"""
+        """Check if PyTorch is available with GPU support"""
         try:
             import torch
-            return True
+            # Only consider PyTorch available if GPU acceleration is available
+            if torch.cuda.is_available() or (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):
+                return True
+            else:
+                logger.warning("⚠️  PyTorch available but no GPU acceleration detected")
+                logger.warning("   PyTorch training requires GPU acceleration (CUDA or MPS)")
+                return False
         except ImportError:
             return False
 

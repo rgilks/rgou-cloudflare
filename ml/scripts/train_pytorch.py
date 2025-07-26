@@ -126,7 +126,7 @@ class PyTorchTrainer:
     def __init__(self, config: TrainingConfig):
         self.config = config
         
-        # Detect best available device
+        # Detect best available device - REQUIRE GPU acceleration
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
             logger.info(f"🎮 Using CUDA GPU: {torch.cuda.get_device_name()}")
@@ -134,8 +134,10 @@ class PyTorchTrainer:
             self.device = torch.device('mps')
             logger.info("🍎 Using Apple Metal Performance Shaders (MPS)")
         else:
-            self.device = torch.device('cpu')
-            logger.warning("💻 Using CPU - no GPU acceleration available")
+            logger.error("❌ GPU acceleration required for PyTorch training!")
+            logger.error("   CUDA or Apple Metal (MPS) must be available.")
+            logger.error("   Please install PyTorch with GPU support or use Rust backend instead.")
+            raise RuntimeError("GPU acceleration required for PyTorch training")
         
         logger.info(f"Using device: {self.device}")
         

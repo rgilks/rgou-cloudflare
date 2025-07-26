@@ -150,7 +150,10 @@ if [ "$BACKEND" = "auto" ] || [ "$BACKEND" = "pytorch" ]; then
             echo "🍎 Apple Metal (MPS) detected - GPU acceleration will be used!"
         fi
     else
-        echo "⚠️  No GPU acceleration available - training will be slower"
+        echo "❌ No GPU acceleration available!"
+        echo "   PyTorch training requires GPU acceleration (CUDA or MPS)"
+        echo "   Please use Rust backend instead: --backend rust"
+        exit 1
     fi
     echo ""
 fi
