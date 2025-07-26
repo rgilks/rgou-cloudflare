@@ -25,6 +25,22 @@ pub struct TrainingConfig {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NetworkArchitecture {
+    pub input_size: usize,
+    pub hidden_sizes: Vec<usize>,
+    pub value_output_size: usize,
+    pub policy_output_size: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UnifiedTrainingConfig {
+    pub network_architecture: NetworkArchitecture,
+    pub training_defaults: TrainingConfig,
+    pub production_settings: TrainingConfig,
+    pub quick_test_settings: TrainingConfig,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrainingMetadata {
     pub training_date: String,
     pub version: String,
@@ -50,22 +66,54 @@ impl Trainer {
         // Configure optimal thread pool for training
         Self::configure_thread_pool();
 
+        // Load unified configuration if available
+        let network_config = Self::load_network_config().unwrap_or_else(|| {
+            // Fallback to hardcoded values if config file not found
+            NetworkArchitecture {
+                input_size: 150,
+                hidden_sizes: vec![256, 128, 64, 32],
+                value_output_size: 1,
+                policy_output_size: PIECES_PER_PLAYER,
+            }
+        });
+
         let value_config = NetworkConfig {
-            input_size: 150,
-            hidden_sizes: vec![256, 128, 64, 32],
-            output_size: 1,
+            input_size: network_config.input_size,
+            hidden_sizes: network_config.hidden_sizes.clone(),
+            output_size: network_config.value_output_size,
         };
 
         let policy_config = NetworkConfig {
-            input_size: 150,
-            hidden_sizes: vec![256, 128, 64, 32],
-            output_size: PIECES_PER_PLAYER,
+            input_size: network_config.input_size,
+            hidden_sizes: network_config.hidden_sizes,
+            output_size: network_config.policy_output_size,
         };
 
         Trainer {
             value_network: NeuralNetwork::new(value_config),
             policy_network: NeuralNetwork::new(policy_config),
             config,
+        }
+    }
+
+    fn load_network_config() -> Option<NetworkArchitecture> {
+        let config_path = std::path::Path::new("ml/config/training.json");
+        if config_path.exists() {
+            match std::fs::read_to_string(config_path) {
+                Ok(content) => match serde_json::from_str::<UnifiedTrainingConfig>(&content) {
+                    Ok(config) => Some(config.network_architecture),
+                    Err(e) => {
+                        eprintln!("Warning: Failed to parse training config: {}", e);
+                        None
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Warning: Failed to read training config: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
         }
     }
 
