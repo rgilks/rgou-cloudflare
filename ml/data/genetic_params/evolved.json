@@ -1,10 +1,10 @@
 {
-  "win_score": 8640,
-  "finished_piece_value": 754,
-  "position_weight": 7,
-  "safety_bonus": 9,
-  "rosette_control_bonus": 58,
-  "advancement_bonus": 0,
-  "capture_bonus": 35,
-  "center_lane_bonus": 5
+  "win_score": 8354,
+  "finished_piece_value": 638,
+  "position_weight": 30,
+  "safety_bonus": -13,
+  "rosette_control_bonus": 61,
+  "advancement_bonus": 11,
+  "capture_bonus": 49,
+  "center_lane_bonus": 4
 }

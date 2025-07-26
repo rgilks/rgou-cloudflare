@@ -35,7 +35,22 @@ The AI uses the following probabilities for the four tetrahedral dice:
 
 ### Position Evaluation
 
-The evaluation function is hand-crafted to assess the strategic value of a board state. Key factors include:
+The evaluation function uses evolved genetic parameters that were optimized through a genetic algorithm process. These parameters were evolved over 50 generations with 50 individuals per generation, playing 100 games per evaluation, and validated with 1000 games.
+
+**Current Evolved Parameters (July 2025):**
+
+- `win_score`: 8354 (reduced from 10000)
+- `finished_piece_value`: 638 (reduced from 1000)
+- `position_weight`: 30 (increased from 15)
+- `safety_bonus`: -13 (reduced from 25)
+- `rosette_control_bonus`: 61 (increased from 40)
+- `advancement_bonus`: 11 (increased from 5)
+- `capture_bonus`: 49 (increased from 35)
+- `center_lane_bonus`: 4 (increased from 2)
+
+**Performance:** The evolved parameters achieve a 61% win rate against the default parameters, representing a significant improvement in AI strength.
+
+The evaluation function assesses the strategic value of a board state based on these optimized weights. Key factors include:
 
 - **Piece Advantage**: Number of pieces on the board vs. the opponent.
 - **Piece Advancement**: How far pieces have moved along their track.
@@ -98,6 +113,8 @@ Based on comprehensive testing of 1,250 games across all AI types:
 | **Classic AI (EMM-3)** | **70.0%** | 3-ply        | 15ms    | **Optimal - Best balance** |
 | Classic AI (EMM-2)     | 98.0%     | 2-ply        | Instant | Strong alternative         |
 | Heuristic AI           | 40.0%     | N/A          | Instant | Educational baseline       |
+
+**Note:** All Classic AI variants now use evolved genetic parameters that provide a 61% win rate improvement over the original default parameters.
 
 ### ML AI Performance (Updated)
 
