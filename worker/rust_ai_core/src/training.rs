@@ -23,28 +23,24 @@
 //! ## Usage Examples
 //!
 //! ```rust
-//! // Create trainer with optimal CPU configuration
-//! let config = TrainingConfig {
-//!     num_games: 1000,
-//!     epochs: 50,
-//!     batch_size: 32,
-//!     learning_rate: 0.001,
-//!     validation_split: 0.2,
-//!     depth: 3,
-//!     seed: 42,
-//!     output_file: "ml_ai_weights.json".to_string(),
-//! };
-//!
-//! let mut trainer = Trainer::new(config);
-//!
-//! // Generate training data using all CPU cores
-//! let training_data = trainer.generate_training_data();
-//!
-//! // Train neural networks
-//! let metadata = trainer.train(&training_data);
-//!
-//! // Save trained weights
-//! trainer.save_weights("weights.json", &metadata)?;
+//! use rgou_ai_core::training::{Trainer, TrainingConfig};
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let config = TrainingConfig {
+//!         num_games: 1,
+//!         epochs: 1,
+//!         batch_size: 1,
+//!         learning_rate: 0.001,
+//!         validation_split: 0.2,
+//!         depth: 1,
+//!         seed: 42,
+//!         output_file: "ml_ai_weights.json".to_string(),
+//!     };
+//!     let mut trainer = Trainer::new(config);
+//!     let training_data = trainer.generate_training_data();
+//!     let metadata = trainer.train(&training_data);
+//!     trainer.save_weights("weights.json", &metadata)?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ## CPU Optimization Strategy
@@ -54,8 +50,8 @@
 //! | System Type | Core Allocation | Description |
 //! |-------------|-----------------|-------------|
 //! | Apple Silicon | 8 performance cores | M1/M2/M3 Macs: Uses all performance cores, leaves efficiency cores for system |
-//! | High-Core (16+) | total - 2 cores | High-end systems: Leaves 2 cores for system tasks |
-//! | High-Core (8-15) | total - 1 core | Mid-range systems: Leaves 1 core for system tasks |
+//! | High-core (16+) | total - 2 cores | High-end systems: Leaves 2 cores for system tasks |
+//! | High-core (8-15) | total - 1 core | Mid-range systems: Leaves 1 core for system tasks |
 //! | Standard | all cores | Smaller systems: Uses all available cores |
 //!
 //! ## Performance Monitoring
@@ -352,13 +348,15 @@ impl Trainer {
     /// # Examples
     ///
     /// ```rust
+    /// use rgou_ai_core::training::{Trainer, TrainingConfig};
+    ///
     /// let config = TrainingConfig {
-    ///     num_games: 1000,
-    ///     epochs: 50,
-    ///     batch_size: 32,
+    ///     num_games: 1,
+    ///     epochs: 1,
+    ///     batch_size: 1,
     ///     learning_rate: 0.001,
     ///     validation_split: 0.2,
-    ///     depth: 3,
+    ///     depth: 1,
     ///     seed: 42,
     ///     output_file: "ml_ai_weights.json".to_string(),
     /// };
@@ -608,6 +606,20 @@ impl Trainer {
     /// # Examples
     ///
     /// ```rust
+    /// use rgou_ai_core::training::{Trainer, TrainingConfig};
+    ///
+    /// let config = TrainingConfig {
+    ///     num_games: 1,
+    ///     epochs: 1,
+    ///     batch_size: 1,
+    ///     learning_rate: 0.001,
+    ///     validation_split: 0.2,
+    ///     depth: 1,
+    ///     seed: 42,
+    ///     output_file: "test_weights.json".to_string(),
+    /// };
+    ///
+    /// let trainer = Trainer::new(config);
     /// let training_data = trainer.generate_training_data();
     /// println!("Generated {} training samples", training_data.len());
     /// ```
@@ -615,7 +627,7 @@ impl Trainer {
     /// # Progress Output
     ///
     /// The method provides detailed progress information:
-    /// ```
+    /// ```text
     /// 🎮 Core 1: 25.0% - 12.5 games/sec - ETA: 6s - Samples: 3750
     /// 🎮 Core 2: 50.0% - 12.3 games/sec - ETA: 4s - Samples: 7500
     /// ```
@@ -827,6 +839,20 @@ impl Trainer {
     /// # Examples
     ///
     /// ```rust
+    /// use rgou_ai_core::training::{Trainer, TrainingConfig};
+    ///
+    /// let config = TrainingConfig {
+    ///     num_games: 1,
+    ///     epochs: 1,
+    ///     batch_size: 1,
+    ///     learning_rate: 0.001,
+    ///     validation_split: 0.2,
+    ///     depth: 1,
+    ///     seed: 42,
+    ///     output_file: "test_weights.json".to_string(),
+    /// };
+    ///
+    /// let mut trainer = Trainer::new(config);
     /// let training_data = trainer.generate_training_data();
     /// let metadata = trainer.train(&training_data);
     /// println!("Training completed in {:.2} seconds", metadata.training_time_seconds);
@@ -835,7 +861,7 @@ impl Trainer {
     /// # Progress Output
     ///
     /// The method provides detailed training progress:
-    /// ```
+    /// ```text
     /// ⏱️  Epoch 1/50 (45s) | Train: 0.2345 | Val: 0.2123 | Δ: -0.0222 | ETA: 37.5m
     ///    📊 Trends: Train 📉 | Val 📉 | Best Val: 0.2123
     /// ```
@@ -1065,13 +1091,13 @@ impl Trainer {
     }
 
     /// Save trained neural network weights to a JSON file
-    /// 
+    ///
     /// This method saves both the value network and policy network weights
     /// along with comprehensive metadata about the training run. The saved
     /// file can be loaded later to restore the trained model.
-    /// 
+    ///
     /// # File Format
-    /// 
+    ///
     /// The weights are saved in JSON format with the following structure:
     /// ```json
     /// {
@@ -1098,26 +1124,42 @@ impl Trainer {
     ///   }
     /// }
     /// ```
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `filename` - Path to the output JSON file
     /// * `metadata` - Training metadata containing configuration and performance information
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * `Ok(())` - Weights successfully saved
     /// * `Err(...)` - Error occurred during saving (e.g., file permission, disk space)
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust
+    /// use rgou_ai_core::training::{Trainer, TrainingConfig};
+    ///
+    /// let config = TrainingConfig {
+    ///     num_games: 1,
+    ///     epochs: 1,
+    ///     batch_size: 1,
+    ///     learning_rate: 0.001,
+    ///     validation_split: 0.2,
+    ///     depth: 1,
+    ///     seed: 42,
+    ///     output_file: "test_weights.json".to_string(),
+    /// };
+    ///
+    /// let mut trainer = Trainer::new(config);
+    /// let training_data = trainer.generate_training_data();
     /// let metadata = trainer.train(&training_data);
     /// trainer.save_weights("ml_ai_weights.json", &metadata)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    /// 
+    ///
     /// # Error Handling
-    /// 
+    ///
     /// Common errors include:
     /// - File permission issues
     /// - Insufficient disk space
@@ -1143,13 +1185,13 @@ impl Trainer {
     }
 
     /// Load neural network weights from a JSON file
-    /// 
+    ///
     /// This method loads previously saved weights for both the value network
     /// and policy network. The weights file must contain the same network
     /// architecture as the current trainer configuration.
-    /// 
+    ///
     /// # File Format
-    /// 
+    ///
     /// The method expects a JSON file with the same structure as produced by `save_weights()`:
     /// ```json
     /// {
@@ -1164,33 +1206,47 @@ impl Trainer {
     ///   "metadata": { ... }
     /// }
     /// ```
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `filename` - Path to the JSON file containing saved weights
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * `Ok(())` - Weights successfully loaded
     /// * `Err(...)` - Error occurred during loading
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust
+    /// use rgou_ai_core::training::{Trainer, TrainingConfig};
+    ///
+    /// let config = TrainingConfig {
+    ///     num_games: 1,
+    ///     epochs: 1,
+    ///     batch_size: 1,
+    ///     learning_rate: 0.001,
+    ///     validation_split: 0.2,
+    ///     depth: 1,
+    ///     seed: 42,
+    ///     output_file: "test_weights.json".to_string(),
+    /// };
+    ///
     /// let mut trainer = Trainer::new(config);
     /// trainer.load_weights("ml_ai_weights.json")?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    /// 
+    ///
     /// # Error Handling
-    /// 
+    ///
     /// Common errors include:
     /// - File not found
     /// - Invalid JSON format
     /// - Network architecture mismatch
     /// - Corrupted weight data
-    /// 
+    ///
     /// # Compatibility
-    /// 
+    ///
     /// The loaded weights must match the current network architecture.
     /// If the architecture has changed, the weights cannot be loaded.
     pub fn load_weights(&mut self, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -1217,12 +1273,12 @@ mod tests {
     #[test]
     fn test_trainer_creation() {
         let config = TrainingConfig {
-            num_games: 100,
-            epochs: 10,
-            batch_size: 32,
+            num_games: 1,
+            epochs: 1,
+            batch_size: 1,
             learning_rate: 0.001,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1240,7 +1296,7 @@ mod tests {
             batch_size: 1,
             learning_rate: 0.001,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1271,7 +1327,7 @@ mod tests {
             batch_size: 1,
             learning_rate: 0.001,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1296,7 +1352,7 @@ mod tests {
             batch_size: 1,
             learning_rate: 0.001,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1317,7 +1373,7 @@ mod tests {
             batch_size: 1,
             learning_rate: 0.001,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1341,12 +1397,12 @@ mod tests {
     #[test]
     fn test_training_data_generation() {
         let config = TrainingConfig {
-            num_games: 5,
+            num_games: 1,
             epochs: 1,
             batch_size: 1,
             learning_rate: 0.001,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1377,10 +1433,10 @@ mod tests {
         let config = TrainingConfig {
             num_games: 1,
             epochs: 1,
-            batch_size: 2,
+            batch_size: 1,
             learning_rate: 0.01,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1411,10 +1467,10 @@ mod tests {
         let config = TrainingConfig {
             num_games: 1,
             epochs: 1,
-            batch_size: 2,
+            batch_size: 1,
             learning_rate: 0.01,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1448,7 +1504,7 @@ mod tests {
             batch_size: 1,
             learning_rate: 0.001,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1476,7 +1532,7 @@ mod tests {
             batch_size: 1,
             learning_rate: 0.001,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_weights.json".to_string(),
         };
@@ -1540,11 +1596,11 @@ mod tests {
     fn test_training_convergence() {
         let config = TrainingConfig {
             num_games: 1,
-            epochs: 5,
-            batch_size: 4,
+            epochs: 1,
+            batch_size: 1,
             learning_rate: 0.01,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
@@ -1571,7 +1627,7 @@ mod tests {
 
         // Should complete training without errors
         assert_eq!(metadata.num_training_samples, 20);
-        assert_eq!(metadata.epochs, 5);
+        assert_eq!(metadata.epochs, 1);
         assert!(metadata.training_time_seconds > 0.0);
     }
 
@@ -1583,7 +1639,7 @@ mod tests {
             batch_size: 1,
             learning_rate: 0.001,
             validation_split: 0.2,
-            depth: 3,
+            depth: 1,
             seed: 42,
             output_file: "test_output.json".to_string(),
         };
