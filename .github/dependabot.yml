@@ -5,6 +5,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # TypeScript ESLint supports TypeScript <6.1; review 7.x after peer support lands.
+      - dependency-name: typescript
+        versions: ['>=7 <8']
     groups:
       npm-minor-and-patch:
         patterns: ['*']
