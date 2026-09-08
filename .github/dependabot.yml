@@ -9,7 +9,12 @@ updates:
       # TypeScript ESLint supports TypeScript <6.1; review 7.x after peer support lands.
       - dependency-name: typescript
         versions: ['>=7 <8']
+      # eslint-plugin-react excludes ESLint 10 from its peer range.
+      - dependency-name: eslint
+        versions: ['>=10 <11']
     groups:
+      vitest:
+        patterns: ['vitest', '@vitest/*']
       npm-minor-and-patch:
         patterns: ['*']
         update-types: [minor, patch]

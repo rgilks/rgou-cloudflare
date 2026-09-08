@@ -28,7 +28,7 @@ An offline-first implementation of the ancient Royal Game of Ur with search, Cla
 
 ### Prerequisites
 
-- **Node.js 22+** ([download](https://nodejs.org/en/download))
+- **Node.js 22.22.2+, 24.15+, or 26+**, with npm 10+ ([download](https://nodejs.org/en/download))
 - **Rust & Cargo** ([install](https://www.rust-lang.org/tools/install)) — compiles the AI to WebAssembly
 - **wasm-pack**: `cargo install wasm-pack --version 0.12.1 --locked`
 
